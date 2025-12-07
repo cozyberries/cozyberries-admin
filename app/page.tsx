@@ -17,7 +17,7 @@ import {
 import { Shield, AlertTriangle, Loader2 } from "lucide-react";
 
 export default function AdminPage() {
-  const { user, loading, isAuthenticated, isAdmin, userProfile } = useAuth();
+  const { user, loading, isAuthenticated, isAdmin, userProfile, signOut } = useAuth();
   const router = useRouter();
   const [accessDenied, setAccessDenied] = useState(false);
 
@@ -82,17 +82,20 @@ export default function AdminPage() {
 
               <div className="flex space-x-3">
                 <Button
-                  onClick={() => router.push("/")}
+                  onClick={() => router.push("/login")}
                   variant="outline"
                   className="flex-1"
                 >
-                  Go Home
+                  Go Back
                 </Button>
                 <Button
-                  onClick={() => router.push("/profile")}
+                  onClick={async () => {
+                    await signOut();
+                    router.push("/login");
+                  }}
                   className="flex-1"
                 >
-                  View Profile
+                  Sign Out
                 </Button>
               </div>
             </div>
