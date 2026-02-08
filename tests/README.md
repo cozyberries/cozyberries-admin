@@ -1,167 +1,136 @@
 # Playwright E2E Tests
 
-This directory contains end-to-end tests for the Cozyberries Admin application using Playwright.
+Comprehensive end-to-end tests for the Cozyberries Admin application using Playwright.
 
 ## Setup
 
 ### 1. Install Dependencies
 
-First, install the required packages:
-
 ```bash
 npm install
-```
-
-Then, install Playwright browsers:
-
-```bash
 npx playwright install
 ```
 
-### 2. Environment Variables
+### 2. Create Test Admin User
+
+Create a Supabase user with admin privileges for testing:
+
+1. Go to your Supabase dashboard > Authentication > Users
+2. Create a new user with email `testadmin@cozyberries.in` and password `TestAdmin@2026#`
+3. In the `user_profiles` table, set the role to `admin` or `super_admin` for this user
+
+### 3. Environment Variables
 
 Test credentials are stored in `.env.test` file in the project root:
 
 ```env
 BASE_URL=http://localhost:3001
-TEST_USER_EMAIL=test@cozyberries.in
-TEST_USER_PASSWORD=Test@123#
+
+# Test Admin Credentials (must have admin or super_admin role)
+TEST_ADMIN_EMAIL=testadmin@cozyberries.in
+TEST_ADMIN_PASSWORD=TestAdmin@2026#
+TEST_USER_EMAIL=testadmin@cozyberries.in
+TEST_USER_PASSWORD=TestAdmin@2026#
 ```
 
-**Note:** The `.env.test` file is gitignored to keep credentials secure.
+**Note:** `.env.test` is gitignored. Copy from the template and update.
 
 ## Running Tests
 
-### Run all tests (headless)
 ```bash
+# Run all tests (headless)
 npm test
-```
 
-### Run tests with UI mode (recommended for development)
-```bash
+# Run tests with interactive UI
 npm run test:ui
-```
 
-### Run tests in headed mode (see the browser)
-```bash
+# Run tests with browser visible
 npm run test:headed
-```
 
-### Run tests in debug mode
-```bash
+# Run tests in debug mode
 npm run test:debug
-```
 
-### Run specific test file
-```bash
+# Run specific test file
 npx playwright test tests/auth.spec.ts
-```
 
-### Run tests in a specific browser
-```bash
+# Run specific test suite
+npx playwright test tests/products.spec.ts
+
+# Run only auth tests (no pre-auth state)
+npx playwright test --project=auth-tests
+
+# Run only chromium tests (with pre-auth)
 npx playwright test --project=chromium
-npx playwright test --project=firefox
-npx playwright test --project=webkit
-```
 
-## View Test Reports
-
-After running tests, view the HTML report:
-
-```bash
+# Show HTML report
 npm run test:report
 ```
 
 ## Test Structure
 
-### Authentication Tests (`auth.spec.ts`)
+### Authentication Setup (`auth.setup.ts`)
+Runs first to create authenticated browser state saved to `tests/.auth/admin.json`. All other tests (except auth) reuse this state — no repeated logins.
 
-Tests the complete authentication flow:
+### Test Specs
 
-- ✅ Display login page correctly
-- ✅ Show validation error for empty fields
-- ✅ Show error for invalid credentials
-- ✅ Successfully login with valid credentials
-- ✅ Successfully logout after login
-- ✅ Prevent access to dashboard when not authenticated
-- ✅ Maintain session after page refresh
+| File | Tests | Description |
+|------|-------|-------------|
+| `auth.spec.ts` | 18 | Login page UI, validation, invalid credentials, successful login/logout, protected routes, session persistence |
+| `dashboard.spec.ts` | 8 | Stat cards, monthly stats, expense widget, activities, layout assertions |
+| `navigation.spec.ts` | 12 | Sidebar navigation to all pages, active link styling, direct URL access |
+| `products.spec.ts` | 11 | Page header, search/filter, product cards, Add Product form, empty state |
+| `orders.spec.ts` | 12 | Search, date filters, status filters, Add Order, orders list, reset |
+| `users.spec.ts` | 11 | Search, table columns, user rows, status badges, action dropdown, empty state |
+| `expenses.spec.ts` | 10 | Tabs switching, search, filters, table, status badges, access control |
+| `settings.spec.ts` | 13 | All settings sections (General, Email, Security, Notifications, Database), toggle switches, form editing |
+| `api.spec.ts` | 15 | API route responses, auth enforcement, invalid methods, non-existent routes |
+| `responsive.spec.ts` | 5 | Mobile viewport, hamburger menu, mobile navigation, overflow checks |
+
+**Total: ~115 test cases**
+
+### Helpers
+
+| File | Exports | Description |
+|------|---------|-------------|
+| `helpers/auth.ts` | `login`, `logout`, `isAuthenticated`, etc. | Auth utility functions |
+| `helpers/navigation.ts` | `navigateViaSidebar`, `waitForDataLoad`, `searchFor`, etc. | Navigation & interaction helpers |
 
 ## Configuration
 
-The Playwright configuration is defined in `playwright.config.ts`:
+Defined in `playwright.config.ts`:
 
 - **Base URL**: `http://localhost:3001`
-- **Browsers**: Chromium, Firefox, WebKit
+- **Projects**: `setup` → `chromium` (pre-auth), `auth-tests` (no pre-auth)
+- **Timeout**: 60s per test, 15s actions, 30s navigation
 - **Reporters**: HTML report
-- **Screenshots**: On failure
-- **Videos**: On failure
-- **Traces**: On first retry
+- **Artifacts**: Screenshots, videos, traces on failure
+- **Dev Server**: Auto-starts via `npm run dev`
 
 ## CI/CD Integration
 
-The tests are configured to run in CI environments:
-
-- Retries: 2 attempts on CI, 0 locally
-- Parallel execution: Disabled on CI
-- Server: Auto-starts dev server if not running
-
-## Writing New Tests
-
-Create new test files in the `tests/` directory with the `.spec.ts` extension:
-
-```typescript
-import { test, expect } from '@playwright/test';
-
-test.describe('Feature Name', () => {
-  test('should do something', async ({ page }) => {
-    await page.goto('/path');
-    // Your test code here
-  });
-});
-```
-
-## Best Practices
-
-1. **Use descriptive test names**: Clearly describe what the test validates
-2. **Use proper selectors**: Prefer role-based selectors over CSS selectors
-3. **Wait for navigation**: Always wait for URL changes or elements to appear
-4. **Clean up**: Tests should be independent and not rely on previous test state
-5. **Use environment variables**: Never hardcode sensitive data
+- Retries: 2 on CI, 0 locally
+- Workers: 1 on CI, auto locally
+- Server: Auto-starts if not running
+- `test.only` detection: Fails build on CI
 
 ## Troubleshooting
 
 ### Tests timing out
+- Increase timeout: `test.setTimeout(90000)` inside the test
+- Check if dev server is running on port 3001
 
-Increase the timeout in the test:
-
-```typescript
-test('slow test', async ({ page }) => {
-  test.setTimeout(60000); // 60 seconds
-  // Test code
-});
-```
-
-### Server not starting
-
-Make sure the dev server is running or configure the webServer timeout:
-
-```typescript
-// In playwright.config.ts
-webServer: {
-  timeout: 120000, // 2 minutes
-}
-```
+### Auth setup failing
+- Verify `.env.test` credentials are correct
+- Verify the test user exists in Supabase with admin role
+- Check `user_profiles` table has the correct role
 
 ### Browser not found
-
-Reinstall browsers:
-
 ```bash
 npx playwright install --force
 ```
 
-## Additional Resources
+## Resources
 
-- [Playwright Documentation](https://playwright.dev/)
-- [Playwright Best Practices](https://playwright.dev/docs/best-practices)
-- [Playwright API Reference](https://playwright.dev/docs/api/class-playwright)
+- [Playwright Docs](https://playwright.dev/)
+- [Best Practices](https://playwright.dev/docs/best-practices)
+- [Locators](https://playwright.dev/docs/locators)

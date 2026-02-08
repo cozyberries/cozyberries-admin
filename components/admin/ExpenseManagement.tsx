@@ -132,7 +132,7 @@ export default function ExpenseManagement({}: ExpenseManagementProps) {
       if (filters.search) params.append("search", filters.search);
 
       const response = await authenticatedFetch(
-        `/api/admin/expenses?${params}`
+        `/api/expenses?${params}`
       );
 
       if (!response.ok) {
@@ -152,7 +152,7 @@ export default function ExpenseManagement({}: ExpenseManagementProps) {
   const fetchCategories = async () => {
     try {
       const response = await authenticatedFetch(
-        "/api/admin/expense-categories"
+        "/api/expense-categories"
       );
       if (!response.ok) {
         throw new Error("Failed to fetch categories");
@@ -176,7 +176,7 @@ export default function ExpenseManagement({}: ExpenseManagementProps) {
   ) => {
     try {
       const response = await authenticatedFetch(
-        `/api/admin/expenses/${expenseId}`,
+        `/api/expenses/${expenseId}`,
         {
           method: "PUT",
           headers: {
@@ -222,7 +222,7 @@ export default function ExpenseManagement({}: ExpenseManagementProps) {
     }
 
     try {
-      const response = await authenticatedFetch("/api/admin/expenses/actions", {
+      const response = await authenticatedFetch("/api/expenses/actions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -251,7 +251,7 @@ export default function ExpenseManagement({}: ExpenseManagementProps) {
   const handleDeleteExpense = async (expenseId: string) => {
     try {
       const response = await authenticatedFetch(
-        `/api/admin/expenses/${expenseId}`,
+        `/api/expenses/${expenseId}`,
         {
           method: "DELETE",
         }

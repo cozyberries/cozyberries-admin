@@ -149,7 +149,7 @@ export default function ExpenseCategoryManagement({}: ExpenseCategoryManagementP
       }
 
       const response = await authenticatedFetch(
-        `/api/admin/expense-categories?${params}`
+        `/api/expense-categories?${params}`
       );
 
       if (!response.ok) {
@@ -172,7 +172,7 @@ export default function ExpenseCategoryManagement({}: ExpenseCategoryManagementP
 
   const handleCreateCategory: SubmitHandler<CategoryFormData> = async (data) => {
     try {
-      const response = await authenticatedFetch("/api/admin/expense-categories", {
+      const response = await authenticatedFetch("/api/expense-categories", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -200,7 +200,7 @@ export default function ExpenseCategoryManagement({}: ExpenseCategoryManagementP
 
     try {
       const response = await authenticatedFetch(
-        `/api/admin/expense-categories/${selectedCategory.id}`,
+        `/api/expense-categories/${selectedCategory.id}`,
         {
           method: "PUT",
           headers: {
@@ -229,7 +229,7 @@ export default function ExpenseCategoryManagement({}: ExpenseCategoryManagementP
   const handleDeleteCategory = async (categoryId: string) => {
     try {
       const response = await authenticatedFetch(
-        `/api/admin/expense-categories/${categoryId}`,
+        `/api/expense-categories/${categoryId}`,
         {
           method: "DELETE",
         }
@@ -251,7 +251,7 @@ export default function ExpenseCategoryManagement({}: ExpenseCategoryManagementP
   const handleToggleStatus = async (category: ExpenseCategoryData) => {
     try {
       const response = await authenticatedFetch(
-        `/api/admin/expense-categories/${category.id}`,
+        `/api/expense-categories/${category.id}`,
         {
           method: "PUT",
           headers: {

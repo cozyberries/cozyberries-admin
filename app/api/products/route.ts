@@ -3,6 +3,66 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ProductCreate } from "@/lib/types/product";
 import { UpstashService } from "@/lib/upstash";
 
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { searchParams } = new URL(request.url);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const featured = searchParams.get("featured") === "true";
+    const search = searchParams.get("search") || "";
+    const category = searchParams.get("category") || "";
+    const sortBy = searchParams.get("sortBy") || "created_at";
+    const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from("products")
+      .select("*, categories(name, slug)", { count: "exact" });
+
+    if (featured) {
+      query = query.eq("is_featured", true);
+    }
+    if (category) {
+      query = query.eq("category_id", category);
+    }
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    const { data: products, error, count } = await query
+      .order(sortBy, { ascending: sortOrder === "asc" })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      return NextResponse.json(
+        { error: `Failed to fetch products: ${error.message}` },
+        { status: 500 }
+      );
+    }
+
+    const totalItems = count ?? 0;
+    const totalPages = Math.ceil(totalItems / limit) || 1;
+
+    return NextResponse.json({
+      products: products ?? [],
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();

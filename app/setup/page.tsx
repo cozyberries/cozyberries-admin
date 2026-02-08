@@ -26,14 +26,14 @@ export default function AdminSetupPage() {
 
   const checkSetupStatus = async () => {
     try {
-      const response = await fetch("/api/admin/setup");
+      const response = await fetch("/api/setup");
       const data = await response.json();
       
       if (response.ok) {
         setNeedsSetup(data.needsSetup);
         if (!data.needsSetup) {
-          // Admin already exists, redirect to admin login
-          router.push("/admin");
+          // Admin already exists, redirect to dashboard
+          router.push("/");
         }
       } else {
         setError("Failed to check setup status");
@@ -62,7 +62,7 @@ export default function AdminSetupPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/admin/setup", {
+      const response = await fetch("/api/setup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,9 +81,9 @@ export default function AdminSetupPage() {
         // Store the admin token temporarily
         localStorage.setItem("admin_token", data.token);
         
-        setTimeout(() => {
-          router.push("/admin");
-        }, 2000);
+setTimeout(() => {
+        router.push("/");
+      }, 2000);
       } else {
         setError(data.error || "Failed to create admin user");
       }

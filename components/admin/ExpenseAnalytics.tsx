@@ -43,7 +43,7 @@ export default function ExpenseAnalytics({}: ExpenseAnalyticsProps) {
   const fetchSummary = async () => {
     try {
       setLoading(true);
-      const response = await authenticatedFetch("/api/admin/expenses/summary");
+      const response = await authenticatedFetch("/api/expenses/summary");
 
       if (!response.ok) {
         throw new Error("Failed to fetch expense summary");

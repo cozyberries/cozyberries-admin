@@ -88,7 +88,7 @@ export default function OrderManagement() {
       }
 
       const queryString = params.toString();
-      const url = `/api/admin/orders${queryString ? `?${queryString}` : ""}`;
+      const url = `/api/orders${queryString ? `?${queryString}` : ""}`;
 
       const response = await get(url, { requireAdmin: true });
       const data = await response.json();
@@ -106,7 +106,7 @@ export default function OrderManagement() {
   ) => {
     try {
       const response = await put(
-        `/api/admin/orders/${orderId}`,
+        `/api/orders/${orderId}`,
         { status: newStatus },
         { requireAdmin: true }
       );
@@ -134,7 +134,7 @@ export default function OrderManagement() {
     setUpdatingPaymentId(paymentId);
     try {
       const response = await patch(
-        `/api/admin/payments/${paymentId}`,
+        `/api/payments/${paymentId}`,
         { status: newStatus },
         { requireAdmin: true }
       );
@@ -179,7 +179,7 @@ export default function OrderManagement() {
       return;
 
     try {
-      const response = await del(`/api/admin/orders/${orderId}`, {
+      const response = await del(`/api/orders/${orderId}`, {
         requireAdmin: true,
       });
 

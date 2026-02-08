@@ -281,7 +281,7 @@ export default function OrderForm({ onCancel, onSuccess }) {
                 notes: notes || undefined,
             };
 
-            const response = await post("/api/admin/orders", orderData, { requireAdmin: true });
+            const response = await post("/api/orders", orderData, { requireAdmin: true });
             if (response.ok) {
                 await onSuccess();
                 toast.success("Order created successfully!");

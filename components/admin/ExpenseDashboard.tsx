@@ -45,8 +45,8 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
 
         // Fetch summary and recent expenses in parallel
         const [summaryResponse, expensesResponse] = await Promise.all([
-          authenticatedFetch("/api/admin/expenses/summary"),
-          authenticatedFetch("/api/admin/expenses?limit=5"),
+          authenticatedFetch("/api/expenses/summary"),
+          authenticatedFetch("/api/expenses?limit=5"),
         ]);
 
         if (summaryResponse.ok) {

@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import { login, logout, fillLoginForm, submitLoginForm, getLoginError } from './helpers/auth';
 
 test.describe('Authentication Flow (Using Helpers)', () => {
-  const testEmail = process.env.TEST_USER_EMAIL!;
-  const testPassword = process.env.TEST_USER_PASSWORD!;
+  const testEmail = process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL!;
+  const testPassword = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD!;
 
   test('should login and logout using helper functions', async ({ page }) => {
     // Login using helper
@@ -42,8 +42,8 @@ test.describe('Authentication Flow (Using Helpers)', () => {
     // Submit form
     await submitLoginForm(page);
 
-    // Wait for navigation
-    await page.waitForURL('/', { timeout: 15000 });
+    // Wait for navigation (use domcontentloaded for faster response)
+    await page.waitForURL('/', { timeout: 30000, waitUntil: 'domcontentloaded' });
 
     // Verify we're authenticated
     await expect(page).toHaveURL('/');

@@ -72,7 +72,7 @@ export default function ProductManagement() {
     }
 
     try {
-      const response = await fetch(`/api/admin/products/${productId}`, {
+      const response = await fetch(`/api/products/${productId}`, {
         method: "DELETE",
       });
 
@@ -92,8 +92,8 @@ export default function ProductManagement() {
   const handleFormSubmit = async (productData: any) => {
     try {
       const url = editingProduct
-        ? `/api/admin/products/${editingProduct.id}`
-        : "/api/admin/products";
+        ? `/api/products/${editingProduct.id}`
+        : "/api/products";
 
       const method = editingProduct ? "PUT" : "POST";
 

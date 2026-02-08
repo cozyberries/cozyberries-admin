@@ -79,7 +79,7 @@ export default function AnalyticsDashboard() {
       setLoading(true);
 
       // Fetch analytics data from API
-      const response = await fetch('/api/admin/analytics');
+      const response = await fetch('/api/analytics');
       if (response.ok) {
         const data = await response.json();
         setStats(data.stats);

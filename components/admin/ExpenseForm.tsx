@@ -139,7 +139,7 @@ export default function ExpenseForm({
     try {
       setCategoriesLoading(true);
       const response = await authenticatedFetch(
-        "/api/admin/expense-categories"
+        "/api/expense-categories"
       );
       if (!response.ok) {
         throw new Error("Failed to fetch categories");
@@ -191,7 +191,7 @@ export default function ExpenseForm({
       };
 
       const response = await authenticatedFetch(
-        "/api/admin/expense-categories",
+        "/api/expense-categories",
         {
           method: "POST",
           headers: {
@@ -265,8 +265,8 @@ export default function ExpenseForm({
 
       const url =
         isEdit && expenseId
-          ? `/api/admin/expenses/${expenseId}`
-          : "/api/admin/expenses";
+          ? `/api/expenses/${expenseId}`
+          : "/api/expenses";
 
       const method = isEdit ? "PUT" : "POST";
 
