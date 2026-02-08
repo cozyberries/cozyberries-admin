@@ -83,50 +83,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If setting this address as default, unset all other defaults first
-    if (body.is_default === true) {
-      const { error: updateError } = await supabase
-        .from("user_addresses")
-        .update({ is_default: false })
-        .eq("user_id", user.id)
-        .eq("is_default", true);
-
-      if (updateError) {
-        return NextResponse.json(
-          { error: `Failed to update existing defaults: ${updateError.message}` },
-          { status: 500 }
-        );
-      }
-    }
+    // Use RPC to atomically handle default address logic
+    const addressData = {
+      user_id: user.id,
+      address_type: body.address_type ?? "home",
+      label: body.label ?? null,
+      full_name: body.full_name ?? null,
+      phone: body.phone ?? null,
+      address_line_1: body.address_line_1,
+      address_line_2: body.address_line_2 ?? null,
+      city: body.city,
+      state: body.state,
+      postal_code: body.postal_code,
+      country: body.country ?? "India",
+      is_default: body.is_default ?? false,
+      is_active: true,
+    };
 
     const { data, error } = await supabase
-      .from("user_addresses")
-      .insert({
-        user_id: user.id,
-        address_type: body.address_type ?? "home",
-        label: body.label ?? null,
-        full_name: body.full_name ?? null,
-        phone: body.phone ?? null,
-        address_line_1: body.address_line_1,
-        address_line_2: body.address_line_2 ?? null,
-        city: body.city,
-        state: body.state,
-        postal_code: body.postal_code,
-        country: body.country ?? "India",
-        is_default: body.is_default ?? false,
-        is_active: true,
-      })
-      .select()
-      .single();
+      .rpc('ensure_single_default_address', {
+        p_user_id: user.id,
+        p_address_type: addressData.address_type,
+        p_label: addressData.label,
+        p_full_name: addressData.full_name,
+        p_phone: addressData.phone,
+        p_address_line_1: addressData.address_line_1,
+        p_address_line_2: addressData.address_line_2,
+        p_city: addressData.city,
+        p_state: addressData.state,
+        p_postal_code: addressData.postal_code,
+        p_country: addressData.country,
+        p_is_default: addressData.is_default,
+        p_is_active: addressData.is_active,
+      });
 
     if (error) {
+      console.error("Failed to create address via RPC:", error);
       return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
+        { error: "Failed to create address" },
+        { status: 500 }
       );
     }
 
-    return NextResponse.json(data, { status: 201 });
+    // RPC returns an array with one row, extract it
+    const newAddress = Array.isArray(data) && data.length > 0 ? data[0] : data;
+
+    return NextResponse.json(newAddress, { status: 201 });
   } catch (error) {
     console.error("Address create error:", error);
     return NextResponse.json(

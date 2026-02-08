@@ -102,14 +102,20 @@ test.describe('Authentication Flow', () => {
   });
 
   test('Sign In button should show loading state during submission', async ({ page }) => {
+    // Intercept the auth request to add a delay so loading state is reliably visible
+    await page.route('**/auth/v1/token**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await route.continue();
+    });
+
     await page.getByLabel(/email address/i).fill('wrong@email.com');
     await page.getByLabel(/password/i).fill('wrongpassword');
 
     const signInBtn = page.getByRole('button', { name: /^sign in$/i });
     await signInBtn.click();
 
-    // Wait for transient "Signing in..." text with short timeout to catch loading state
-    await page.getByText('Signing in...').waitFor({ state: 'visible', timeout: 1000 });
+    // Assert loading state is visible
+    await expect(page.getByText('Signing in...')).toBeVisible();
   });
 
   // ── Successful login ───────────────────────────────────────────
@@ -150,36 +156,17 @@ test.describe('Authentication Flow', () => {
 
   // ── Protected routes ───────────────────────────────────────────
 
-  test('should redirect unauthenticated user from / to /login', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForURL(/\/login/, { timeout: 15000 });
-    await expect(page.getByRole('heading', { name: /sign in to your account/i })).toBeVisible();
-  });
-
-  test('should redirect unauthenticated user from /products to /login', async ({ page }) => {
-    await page.goto('/products');
-    await page.waitForURL(/\/login/, { timeout: 15000 });
-  });
-
-  test('should redirect unauthenticated user from /orders to /login', async ({ page }) => {
-    await page.goto('/orders');
-    await page.waitForURL(/\/login/, { timeout: 15000 });
-  });
-
-  test('should redirect unauthenticated user from /users to /login', async ({ page }) => {
-    await page.goto('/users');
-    await page.waitForURL(/\/login/, { timeout: 15000 });
-  });
-
-  test('should redirect unauthenticated user from /expenses to /login', async ({ page }) => {
-    await page.goto('/expenses');
-    await page.waitForURL(/\/login/, { timeout: 15000 });
-  });
-
-  test('should redirect unauthenticated user from /settings to /login', async ({ page }) => {
-    await page.goto('/settings');
-    await page.waitForURL(/\/login/, { timeout: 15000 });
-  });
+  const protectedRoutes = ['/', '/products', '/orders', '/users', '/expenses', '/settings'];
+  
+  for (const route of protectedRoutes) {
+    test(`should redirect unauthenticated user from ${route} to /login`, async ({ page }) => {
+      await page.goto(route);
+      await page.waitForURL(/\/login/, { timeout: 15000 });
+      if (route === '/') {
+        await expect(page.getByRole('heading', { name: /sign in to your account/i })).toBeVisible();
+      }
+    });
+  }
 
   // ── Session persistence ────────────────────────────────────────
 
@@ -216,5 +203,7 @@ test.describe('Authentication Flow', () => {
     await page.goto('/setup');
     // Setup page should not redirect to login
     await expect(page).toHaveURL('/setup');
+    // Verify actual page content loads
+    await expect(page.getByRole('heading', { name: /admin setup|setup/i })).toBeVisible({ timeout: 10000 });
   });
 });

@@ -76,20 +76,22 @@ test.describe('Order Management', () => {
     await page.waitForTimeout(500);
 
     // Verify Processing button is now active
-    const processingClass = await processingBtn.getAttribute('class');
     const processingPressed = await processingBtn.getAttribute('aria-pressed');
+    const processingClass = await processingBtn.getAttribute('class');
     
-    // Should have active state (check variant or aria-pressed)
-    const isActive = processingClass?.includes('default') || processingPressed === 'true';
+    // Prioritize aria-pressed, fallback to class check
+    const isActive = processingPressed === 'true' || 
+      (processingPressed == null && processingClass?.includes('default'));
     expect(isActive).toBeTruthy();
 
     // Verify All Orders button is no longer active
     const allOrdersBtn = page.getByRole('button', { name: 'All Orders' });
-    const allOrdersClass = await allOrdersBtn.getAttribute('class');
     const allOrdersPressed = await allOrdersBtn.getAttribute('aria-pressed');
+    const allOrdersClass = await allOrdersBtn.getAttribute('class');
     
-    // Should have inactive state (outline variant or aria-pressed false)
-    const isInactive = allOrdersClass?.includes('outline') || allOrdersPressed === 'false' || !allOrdersPressed;
+    // Prioritize aria-pressed, fallback to class check
+    const isInactive = (allOrdersPressed != null && allOrdersPressed !== 'true') || 
+      (allOrdersPressed == null && allOrdersClass?.includes('outline'));
     expect(isInactive).toBeTruthy();
   });
 

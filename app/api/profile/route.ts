@@ -97,8 +97,8 @@ export async function PUT(request: Request) {
           { status: 400 }
         );
       }
-      const digitsOnly = phone.replace(/\D/g, "");
-      if (phone.length > 0 && (digitsOnly.length < 10 || !PHONE_PATTERN.test(phone))) {
+      // Only validate format if phone is provided
+      if (phone.length > 0 && !PHONE_PATTERN.test(phone)) {
         return NextResponse.json(
           { error: "phone must be a valid number (E.164 or digits with optional +, spaces, hyphens, parentheses)" },
           { status: 400 }

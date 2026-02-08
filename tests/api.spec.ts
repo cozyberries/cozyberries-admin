@@ -122,12 +122,12 @@ test.describe('API Routes', () => {
     expect(response.status()).toBe(400);
   });
 
-  test('POST /api/auth/generate-token that triggers server error should return 500', async ({ request }) => {
+  test('POST /api/auth/generate-token with malformed JSON should return 400', async ({ request }) => {
     const response = await request.post('/api/auth/generate-token', {
       data: 'not valid json',
       headers: { 'Content-Type': 'application/json' },
     });
-    expect(response.status()).toBe(500);
+    expect(response.status()).toBe(400);
   });
 
   // ── Setup API ──────────────────────────────────────────────────
@@ -152,12 +152,12 @@ test.describe('API Routes', () => {
     expect(response.status()).toBe(400);
   });
 
-  test('POST /api/setup that triggers server error should return 500', async ({ request }) => {
+  test('POST /api/setup with malformed JSON should return 400', async ({ request }) => {
     const response = await request.post('/api/setup', {
       data: 'not valid json',
       headers: { 'Content-Type': 'application/json' },
     });
-    expect(response.status()).toBe(500);
+    expect(response.status()).toBe(400);
   });
 
   // ── Non-existent routes ────────────────────────────────────────
@@ -169,9 +169,9 @@ test.describe('API Routes', () => {
 
   // ── Invalid methods ────────────────────────────────────────────
 
-  test('DELETE /api/products without ID should return error', async ({ request }) => {
+  test('DELETE /api/products without ID should return 404 or 405', async ({ request }) => {
     const response = await request.delete('/api/products');
-    // Should return method not allowed or error
-    expect([400, 401, 403, 404, 405, 500]).toContain(response.status());
+    // Should return 405 (Method Not Allowed) since DELETE requires an ID
+    expect(response.status()).toBe(405);
   });
 });

@@ -35,6 +35,23 @@ export async function PUT(
       }
     }
 
+    // If setting this address as default, clear other defaults first
+    if (body.is_default === true) {
+      const { error: clearError } = await supabase
+        .from("user_addresses")
+        .update({ is_default: false })
+        .eq("user_id", user.id)
+        .neq("id", id);
+
+      if (clearError) {
+        console.error("Failed to clear existing defaults:", clearError);
+        return NextResponse.json(
+          { error: "Failed to update defaults" },
+          { status: 500 }
+        );
+      }
+    }
+
     const { data, error } = await supabase
       .from("user_addresses")
       .update(sanitizedUpdate)

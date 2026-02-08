@@ -42,16 +42,22 @@ export async function PATCH(
       .single();
 
     if (error) {
+      // Check if it's a not-found error or unauthorized
+      const errorMessage = (error as { message?: string; code?: string }).message || "Database error";
+      const errorCode = (error as { message?: string; code?: string }).code;
+      
+      if (errorCode === 'PGRST116' || errorMessage.includes('no rows')) {
+        return NextResponse.json(
+          { error: "Notification not found or unauthorized" },
+          { status: 404 }
+        );
+      }
+      
+      // Other database errors
+      console.error("Database error updating notification:", error);
       return NextResponse.json(
-        { error: "Notification not found or unauthorized" },
-        { status: 404 }
-      );
-    }
-
-    if (!data) {
-      return NextResponse.json(
-        { error: "Notification not found" },
-        { status: 404 }
+        { error: errorMessage },
+        { status: 500 }
       );
     }
 

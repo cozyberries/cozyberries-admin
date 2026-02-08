@@ -44,8 +44,8 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
       setLoading(true);
       setFetchError(null);
 
-      // Fetch summary and recent expenses in parallel; don't let one failure break the other
-      const [summaryResult, expensesResult] = await Promise.allSettled([
+      // Fetch summary and recent expenses in parallel; errors are caught per-request
+      const [summaryResponse, expensesResponse] = await Promise.all([
         authenticatedFetch("/api/expenses/summary").catch((e) => {
           console.error("Expense summary fetch failed:", e);
           return null;
@@ -56,23 +56,32 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
         }),
       ]);
 
-      const summaryResponse =
-        summaryResult.status === "fulfilled" ? summaryResult.value : null;
-      const expensesResponse =
-        expensesResult.status === "fulfilled" ? expensesResult.value : null;
-
-      if (summaryResponse?.ok) {
-        const summaryData = await summaryResponse.json();
-        setSummary(summaryData);
+      try {
+        if (summaryResponse?.ok) {
+          const summaryData = await summaryResponse.json();
+          setSummary(summaryData);
+        }
+      } catch (parseError) {
+        console.error("Failed to parse summary response:", parseError);
+        setFetchError("Failed to load expense summary. The data format may be invalid.");
       }
 
-      if (expensesResponse?.ok) {
-        const expensesData = await expensesResponse.json();
-        setRecentExpenses(expensesData.expenses || []);
+      try {
+        if (expensesResponse?.ok) {
+          const expensesData = await expensesResponse.json();
+          setRecentExpenses(expensesData.expenses || []);
+        }
+      } catch (parseError) {
+        console.error("Failed to parse expenses response:", parseError);
+        if (!fetchError) {
+          setFetchError("Failed to load recent expenses. The data format may be invalid.");
+        }
       }
 
       if ((!summaryResponse || !summaryResponse.ok) || (!expensesResponse || !expensesResponse.ok)) {
-        setFetchError("Failed to load expenses. Check that you're signed in as an admin and the API is available.");
+        if (!fetchError) {
+          setFetchError("Failed to load expenses. Check that you're signed in as an admin and the API is available.");
+        }
       }
 
       setLoading(false);

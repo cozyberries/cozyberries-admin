@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -119,7 +119,22 @@ export default function ExpenseManagement({}: ExpenseManagementProps) {
 
   const { fetch: authenticatedFetch } = useAuthenticatedFetch();
 
-  const fetchExpenses = async () => {
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await authenticatedFetch(
+        "/api/expense-categories"
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch categories");
+      }
+      const data = await response.json();
+      setCategories(data.categories || []);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  }, [authenticatedFetch]);
+
+  const fetchExpenses = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -147,30 +162,15 @@ export default function ExpenseManagement({}: ExpenseManagementProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const response = await authenticatedFetch(
-        "/api/expense-categories"
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch categories");
-      }
-      const data = await response.json();
-      setCategories(data.categories || []);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
-  };
+  }, [authenticatedFetch, filters]);
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   useEffect(() => {
     fetchExpenses();
-  }, [filters]);
+  }, [fetchExpenses]);
 
   const handleStatusUpdate = async (
     expenseId: string,

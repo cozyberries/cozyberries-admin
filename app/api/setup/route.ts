@@ -6,7 +6,18 @@ import { generateSuperAdminToken } from "@/lib/jwt-auth";
 // In production, this should be protected with a setup key or disabled after first use
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, setupKey } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error("Invalid JSON in request body:", parseError);
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
+
+    const { email, password, setupKey } = body;
 
     // Verify setup key (use environment variable for security)
     const expectedSetupKey = process.env.ADMIN_SETUP_KEY || 'super-secret-setup-key-change-this';
