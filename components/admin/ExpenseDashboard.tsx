@@ -35,38 +35,51 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
   const [summary, setSummary] = useState<ExpenseSummary | null>(null);
   const [recentExpenses, setRecentExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const { fetch: authenticatedFetch } = useAuthenticatedFetch();
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        setLoading(true);
+      setLoading(true);
+      setFetchError(null);
 
-        // Fetch summary and recent expenses in parallel
-        const [summaryResponse, expensesResponse] = await Promise.all([
-          authenticatedFetch("/api/expenses/summary"),
-          authenticatedFetch("/api/expenses?limit=5"),
-        ]);
+      // Fetch summary and recent expenses in parallel; don't let one failure break the other
+      const [summaryResult, expensesResult] = await Promise.allSettled([
+        authenticatedFetch("/api/expenses/summary").catch((e) => {
+          console.error("Expense summary fetch failed:", e);
+          return null;
+        }),
+        authenticatedFetch("/api/expenses?limit=5").catch((e) => {
+          console.error("Expenses list fetch failed:", e);
+          return null;
+        }),
+      ]);
 
-        if (summaryResponse.ok) {
-          const summaryData = await summaryResponse.json();
-          setSummary(summaryData);
-        }
+      const summaryResponse =
+        summaryResult.status === "fulfilled" ? summaryResult.value : null;
+      const expensesResponse =
+        expensesResult.status === "fulfilled" ? expensesResult.value : null;
 
-        if (expensesResponse.ok) {
-          const expensesData = await expensesResponse.json();
-          setRecentExpenses(expensesData.expenses || []);
-        }
-      } catch (error) {
-        console.error("Error fetching expense dashboard data:", error);
-      } finally {
-        setLoading(false);
+      if (summaryResponse?.ok) {
+        const summaryData = await summaryResponse.json();
+        setSummary(summaryData);
       }
+
+      if (expensesResponse?.ok) {
+        const expensesData = await expensesResponse.json();
+        setRecentExpenses(expensesData.expenses || []);
+      }
+
+      if ((!summaryResponse || !summaryResponse.ok) || (!expensesResponse || !expensesResponse.ok)) {
+        setFetchError("Failed to load expenses. Check that you're signed in as an admin and the API is available.");
+      }
+
+      setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [authenticatedFetch]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -146,6 +159,13 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
           </Link>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{fetchError}</span>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

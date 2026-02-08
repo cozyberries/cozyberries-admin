@@ -75,8 +75,22 @@ test.describe('Order Management', () => {
     await processingBtn.click();
     await page.waitForTimeout(500);
 
-    // All Orders button should no longer be the default variant
-    // and Processing should become active
+    // Verify Processing button is now active
+    const processingClass = await processingBtn.getAttribute('class');
+    const processingPressed = await processingBtn.getAttribute('aria-pressed');
+    
+    // Should have active state (check variant or aria-pressed)
+    const isActive = processingClass?.includes('default') || processingPressed === 'true';
+    expect(isActive).toBeTruthy();
+
+    // Verify All Orders button is no longer active
+    const allOrdersBtn = page.getByRole('button', { name: 'All Orders' });
+    const allOrdersClass = await allOrdersBtn.getAttribute('class');
+    const allOrdersPressed = await allOrdersBtn.getAttribute('aria-pressed');
+    
+    // Should have inactive state (outline variant or aria-pressed false)
+    const isInactive = allOrdersClass?.includes('outline') || allOrdersPressed === 'false' || !allOrdersPressed;
+    expect(isInactive).toBeTruthy();
   });
 
   // ── Add Order button ───────────────────────────────────────────
@@ -89,11 +103,10 @@ test.describe('Order Management', () => {
 
   test('clicking Add Order should show the order form', async ({ page }) => {
     await page.getByRole('button', { name: /add order/i }).click();
-    await page.waitForTimeout(2000);
 
     // Order form should be displayed (component replaces the list)
-    const formVisible = await page.locator('text=/create.*order|order.*form|customer/i').first().isVisible().catch(() => false);
-    expect(formVisible).toBeTruthy();
+    const formLocator = page.locator('text=/create.*order|order.*form|customer/i').first();
+    await expect(formLocator).toBeVisible({ timeout: 5000 });
   });
 
   // ── Orders list ────────────────────────────────────────────────
@@ -157,8 +170,14 @@ test.describe('Order Management', () => {
     await searchFor(page, 'nonexistentorder99999xyz');
     await page.waitForTimeout(500);
 
-    // Check for "No orders found" message or verify content updates
-    const body = await page.locator('body').textContent();
-    expect(body).toBeTruthy();
+    // Check for "No orders found" message or empty state element
+    const noOrdersText = page.getByText(/no orders found|no results/i);
+    const emptyState = page.locator('.orders-empty-state');
+    
+    const hasNoOrdersText = await noOrdersText.isVisible().catch(() => false);
+    const hasEmptyState = await emptyState.isVisible().catch(() => false);
+    
+    // Should show some indication of empty results
+    expect(hasNoOrdersText || hasEmptyState).toBeTruthy();
   });
 });

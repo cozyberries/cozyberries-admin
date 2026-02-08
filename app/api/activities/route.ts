@@ -7,10 +7,15 @@ export async function GET() {
 
 // POST: stub for activity logging (used by lib/utils/activities.ts)
 export async function POST(request: NextRequest) {
+  let body: unknown;
   try {
-    await request.json();
-    return NextResponse.json({ success: true });
+    body = await request.json();
   } catch {
-    return NextResponse.json({ success: true });
+    return NextResponse.json(
+      { success: false, error: "Invalid JSON" },
+      { status: 400 }
+    );
   }
+  // Stub: body is parsed for validation only; full logging not implemented yet.
+  return NextResponse.json({ success: true });
 }

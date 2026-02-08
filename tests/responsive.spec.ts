@@ -10,7 +10,7 @@ test.describe('Responsive / Mobile Layout', () => {
 
   test.beforeEach(async ({ page }) => {
     await gotoAuthenticated(page, '/');
-    await page.waitForTimeout(1000);
+    await expect(page.getByRole('heading', { name: 'Admin Panel' }).first()).toBeVisible({ timeout: 15000 });
   });
 
   // ── Mobile header ──────────────────────────────────────────────
@@ -22,9 +22,8 @@ test.describe('Responsive / Mobile Layout', () => {
   });
 
   test('should have a hamburger menu button on mobile', async ({ page }) => {
-    // Menu button (hamburger icon) is in the sticky mobile header
-    const mobileHeader = page.locator('.sticky.top-0');
-    const menuBtn = mobileHeader.locator('button').first();
+    const mobileHeader = page.locator('[data-testid="mobile-header"]');
+    const menuBtn = mobileHeader.getByRole('button').first();
     await expect(menuBtn).toBeVisible({ timeout: 10000 });
   });
 
@@ -33,15 +32,13 @@ test.describe('Responsive / Mobile Layout', () => {
   test('clicking hamburger should open mobile sidebar', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Admin Panel' }).first()).toBeVisible({ timeout: 15000 });
 
-    // Click the hamburger menu button in the sticky mobile header
-    const mobileHeader = page.locator('.sticky.top-0');
-    const menuBtn = mobileHeader.locator('button').first();
+    const mobileHeader = page.locator('[data-testid="mobile-header"]');
+    const menuBtn = mobileHeader.getByRole('button').first();
     await menuBtn.click();
-    await page.waitForTimeout(500);
 
     // Mobile sidebar navigation items should become visible
-    // Check if nav links appear in the mobile drawer
     const dashboardLink = page.getByRole('link', { name: 'Dashboard' });
+    await expect(dashboardLink.first()).toBeVisible({ timeout: 5000 });
     const count = await dashboardLink.count();
     expect(count).toBeGreaterThan(0);
   });
@@ -49,14 +46,12 @@ test.describe('Responsive / Mobile Layout', () => {
   // ── Mobile navigation ──────────────────────────────────────────
 
   test('should be able to navigate on mobile viewport', async ({ page }) => {
-    // Navigate directly to products
     await gotoAuthenticated(page, '/products');
-    await page.waitForTimeout(3000);
-
-    // Page should still render content
-    const body = await page.locator('body').textContent();
-    expect(body).toBeTruthy();
-    expect(body!.length).toBeGreaterThan(0);
+    await expect(page.getByRole('heading', { name: 'Product Management' })).toBeVisible({ timeout: 15000 });
+    // Product content: either the product list (when products exist) or the empty state
+    const productList = page.locator('[data-testid="product-list"]');
+    const emptyState = page.getByRole('heading', { name: 'No products found' });
+    await expect(productList.or(emptyState)).toBeVisible({ timeout: 15000 });
   });
 
   // ── Login page on mobile ──────────────────────────────────────
@@ -79,7 +74,7 @@ test.describe('Responsive / Mobile Layout', () => {
 
   test('page content should not overflow on mobile', async ({ page }) => {
     await gotoAuthenticated(page, '/products');
-    await page.waitForTimeout(3000);
+    await expect(page.getByRole('heading', { name: 'Product Management' })).toBeVisible({ timeout: 15000 });
 
     const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
     const viewportWidth = await page.evaluate(() => window.innerWidth);

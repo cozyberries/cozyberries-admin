@@ -1,8 +1,25 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Authentication Flow', () => {
-  const testEmail = process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL!;
-  const testPassword = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD!;
+  let testEmail: string;
+  let testPassword: string;
+
+  test.beforeAll(() => {
+    const email = process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL;
+    const password = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD;
+    if (!email) {
+      throw new Error(
+        'Missing required env: set either TEST_ADMIN_EMAIL or TEST_USER_EMAIL for auth tests'
+      );
+    }
+    if (!password) {
+      throw new Error(
+        'Missing required env: set either TEST_ADMIN_PASSWORD or TEST_USER_PASSWORD for auth tests'
+      );
+    }
+    testEmail = email;
+    testPassword = password;
+  });
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
@@ -73,8 +90,7 @@ test.describe('Authentication Flow', () => {
     await page.getByLabel(/password/i).fill('wrongpassword');
     await page.getByRole('button', { name: /^sign in$/i }).click();
 
-    // Error message should appear (red text)
-    await expect(page.locator('.text-red-600')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('alert')).toBeVisible({ timeout: 10000 });
   });
 
   test('should show error for correct email but wrong password', async ({ page }) => {
@@ -82,7 +98,7 @@ test.describe('Authentication Flow', () => {
     await page.getByLabel(/password/i).fill('definitelywrongpassword');
     await page.getByRole('button', { name: /^sign in$/i }).click();
 
-    await expect(page.locator('.text-red-600')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('alert')).toBeVisible({ timeout: 10000 });
   });
 
   test('Sign In button should show loading state during submission', async ({ page }) => {
@@ -92,8 +108,8 @@ test.describe('Authentication Flow', () => {
     const signInBtn = page.getByRole('button', { name: /^sign in$/i });
     await signInBtn.click();
 
-    // Button should briefly show "Signing in..." text
-    await expect(page.locator('text=Signing in...')).toBeVisible({ timeout: 5000 });
+    // Wait for transient "Signing in..." text with short timeout to catch loading state
+    await page.getByText('Signing in...').waitFor({ state: 'visible', timeout: 1000 });
   });
 
   // ── Successful login ───────────────────────────────────────────
@@ -185,12 +201,13 @@ test.describe('Authentication Flow', () => {
   // ── Redirect with query param ──────────────────────────────────
 
   test('login redirect should include original path in URL', async ({ page }) => {
-    await page.goto('/products');
-    // Should redirect to /login?redirect=/products
+    const originalPath = '/products';
+    await page.goto(originalPath);
     await page.waitForURL(/\/login/, { timeout: 15000 });
 
     const url = page.url();
-    expect(url).toContain('redirect');
+    const searchParams = new URLSearchParams(new URL(url).search);
+    expect(searchParams.get('redirect')).toBe(originalPath);
   });
 
   // ── Setup page access ─────────────────────────────────────────

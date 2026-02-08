@@ -17,7 +17,7 @@ export async function POST() {
       );
     }
 
-    const { error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("user_profiles")
       .upsert(
         {
@@ -28,9 +28,11 @@ export async function POST() {
           updated_at: new Date().toISOString(),
         },
         { onConflict: "id" }
-      );
+      )
+      .select()
+      .single();
 
-    if (profileError) {
+    if (profileError || !profile) {
       console.error("Error creating/updating profile:", profileError);
       return NextResponse.json(
         { error: "Failed to create profile" },
@@ -40,8 +42,8 @@ export async function POST() {
 
     return NextResponse.json({
       profile: {
-        id: user.id,
-        role: user.user_metadata?.role ?? "customer",
+        id: profile.id,
+        role: profile.role,
       },
     });
   } catch (error) {

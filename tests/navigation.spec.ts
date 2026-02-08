@@ -36,11 +36,11 @@ test.describe('Sidebar Navigation', () => {
     await page.waitForURL('/products');
 
     const productsLink = page.getByRole('link', { name: 'Products' }).first();
-    await expect(productsLink).toHaveClass(/bg-blue-100/);
+    await expect(productsLink).toHaveAttribute('aria-current', 'page');
 
     // Dashboard link should NOT be active
     const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
-    await expect(dashboardLink).not.toHaveClass(/bg-blue-100/);
+    await expect(dashboardLink).not.toHaveAttribute('aria-current');
   });
 
   // ── Sign out button ───────────────────────────────────────────
@@ -54,8 +54,7 @@ test.describe('Sidebar Navigation', () => {
   // ── Admin Panel title ─────────────────────────────────────────
 
   test('should show Admin Panel title in sidebar', async ({ page }) => {
-    // Target desktop sidebar specifically
-    const desktopSidebar = page.locator('.hidden.lg\\:fixed');
+    const desktopSidebar = page.locator('[data-testid="sidebar-desktop"]');
     await expect(desktopSidebar.getByRole('heading', { name: 'Admin Panel' })).toBeVisible();
   });
 

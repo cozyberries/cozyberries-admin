@@ -16,11 +16,20 @@ export async function GET() {
       );
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("user_profiles")
       .select("*")
       .eq("id", user.id)
       .single();
+
+    if (profileError && profileError.code !== "PGRST116") {
+      // PGRST116 is "no rows returned" which is acceptable
+      console.error("Profile fetch error:", profileError);
+      return NextResponse.json(
+        { error: "Failed to fetch profile" },
+        { status: 500 }
+      );
+    }
 
     const profileData = profile
       ? {

@@ -1,9 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { login, logout, fillLoginForm, submitLoginForm, getLoginError } from './helpers/auth';
 
+const testEmail = process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL;
+const testPassword = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD;
+
+if (!testEmail || !testPassword) {
+  throw new Error(
+    'Missing required env vars for auth tests. Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD (or TEST_USER_EMAIL and TEST_USER_PASSWORD).'
+  );
+}
+
 test.describe('Authentication Flow (Using Helpers)', () => {
-  const testEmail = process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL!;
-  const testPassword = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD!;
 
   test('should login and logout using helper functions', async ({ page }) => {
     // Login using helper

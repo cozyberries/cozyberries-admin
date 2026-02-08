@@ -27,8 +27,7 @@ test.describe('Dashboard / Analytics', () => {
 
   test('should highlight Dashboard as the active nav item', async ({ page }) => {
     const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
-    // Active state uses bg-blue-100
-    await expect(dashboardLink).toHaveClass(/bg-blue-100/);
+    await expect(dashboardLink).toHaveAttribute('aria-current', 'page');
   });
 
   // ── Stat cards ─────────────────────────────────────────────────

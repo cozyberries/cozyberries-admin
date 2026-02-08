@@ -29,9 +29,8 @@ test.describe('Expense Management', () => {
 
   test('clicking Analytics tab should show analytics content', async ({ page }) => {
     await page.locator('[role="tablist"]').locator('text=Analytics').click();
-    await page.waitForTimeout(1000);
 
-    // Analytics tab content should now be visible
+    // Analytics tab content should now be visible (assertion auto-waits)
     // ExpenseAnalytics renders charts/analytics
     await expect(page.locator('text=/analytic|chart|expense.*summary|overview/i').first()).toBeVisible({ timeout: 10000 });
   });
@@ -60,9 +59,16 @@ test.describe('Expense Management', () => {
   test('expense list should have filter controls', async ({ page }) => {
     await waitForDataLoad(page);
 
-    // There should be filter/status filter elements
-    const body = await page.locator('body').textContent();
-    expect(body).toBeTruthy();
+    // Check for actual filter controls
+    const statusFilter = page.getByRole('button', { name: /status|filter/i }).first();
+    const hasStatusFilter = await statusFilter.isVisible().catch(() => false);
+    
+    // Alternative: check for date or search filters
+    const dateFilters = page.locator('input[type="date"]');
+    const dateFilterCount = await dateFilters.count();
+    
+    // Should have some filter UI present
+    expect(hasStatusFilter || dateFilterCount > 0).toBeTruthy();
   });
 
   test('should show expense data in a table format', async ({ page }) => {
@@ -87,10 +93,9 @@ test.describe('Expense Management', () => {
 
     // Look for Add/Create/New Expense button
     const addBtn = page.locator('button').filter({ hasText: /add|create|new/i }).first();
-    const isVisible = await addBtn.isVisible().catch(() => false);
-
-    // The button could be on the page or in the component
-    expect(typeof isVisible).toBe('boolean');
+    
+    // Verify the button actually exists and is visible
+    expect(await addBtn.isVisible()).toBe(true);
   });
 
   // ── Expense status badges ──────────────────────────────────────
@@ -102,9 +107,13 @@ test.describe('Expense Management', () => {
     const statusTexts = page.locator('text=/pending|approved|rejected|paid/i');
     const count = await statusTexts.count();
 
-    // If expenses exist, there should be at least one status
-    // If no expenses, count can be 0
-    expect(count).toBeGreaterThanOrEqual(0);
+    // Only assert if there are expenses with status
+    if (count > 0) {
+      expect(count).toBeGreaterThan(0);
+      // Verify the first status text matches expected values
+      const firstStatusText = await statusTexts.nth(0).textContent();
+      expect(firstStatusText?.toLowerCase()).toMatch(/pending|approved|rejected|paid/);
+    }
   });
 
   // ── Bulk actions ───────────────────────────────────────────────
@@ -116,8 +125,10 @@ test.describe('Expense Management', () => {
     const checkboxes = page.locator('[role="checkbox"]');
     const count = await checkboxes.count();
 
-    // If expenses exist, there should be checkboxes
-    expect(count).toBeGreaterThanOrEqual(0);
+    // Only assert if there are checkboxes
+    if (count > 0) {
+      expect(count).toBeGreaterThan(0);
+    }
   });
 
   // ── No access denied for admins ────────────────────────────────
@@ -129,10 +140,7 @@ test.describe('Expense Management', () => {
   // ── Loading state ──────────────────────────────────────────────
 
   test('should not show loading spinner after data loads', async ({ page }) => {
-    // Wait for data to finish loading
-    await page.waitForTimeout(5000);
-
-    // Loading spinner should not be present
-    await expect(page.locator('text=Loading expense management...')).not.toBeVisible();
+    // Wait for loading indicator to disappear (condition-based; proceeds as soon as data loads)
+    await expect(page.locator('text=Loading expense management...')).not.toBeVisible({ timeout: 10000 });
   });
 });

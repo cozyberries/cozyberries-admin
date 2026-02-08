@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 
-// GET: return empty notifications list (used by NotificationCenter)
+// GET: return notifications for the authenticated user (used by NotificationCenter)
 export async function GET() {
-  return NextResponse.json({ notifications: [] });
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to view notifications." },
+      { status: 401 }
+    );
+  }
+
+  // Notifications scoped to this user (stub: empty list; replace with DB query when ready)
+  const notifications: unknown[] = [];
+  return NextResponse.json({ notifications });
 }

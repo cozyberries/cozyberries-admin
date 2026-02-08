@@ -250,7 +250,7 @@ export default function ProductManagement() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="product-list">
           {filteredProducts.map((product) => (
             <Card key={product.id} className="overflow-hidden">
               <div className="aspect-square bg-gray-100 relative">

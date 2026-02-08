@@ -49,14 +49,21 @@ test.describe('Product Management', () => {
     await waitForDataLoad(page);
 
     await searchFor(page, 'zzzznonexistent');
-    await page.waitForTimeout(300);
+    const searchInput = page.getByPlaceholder(/search products/i);
+    await expect(searchInput).toHaveValue('zzzznonexistent');
+    // Wait for filtered results (no results message or filtered cards)
+    await expect(
+      page.locator('text=No products found').or(page.locator('[class*="Card"]').filter({ has: page.locator('h3') }))
+    ).first().toBeVisible({ timeout: 5000 });
 
     // Clear search
-    const searchInput = page.getByPlaceholder(/search products/i);
+    await searchInput.waitFor({ state: 'editable' });
     await searchInput.fill('');
-    await page.waitForTimeout(500);
+    // Wait for results to update after clear (client-side filter; no API call)
+    await expect(
+      page.locator('text=No products found').or(page.locator('h3.font-semibold')).or(page.locator('text=Get started by adding'))
+    ).first().toBeVisible({ timeout: 5000 });
 
-    // Products should be visible again (or empty state if no products exist)
     const bodyText = await page.locator('body').textContent();
     expect(bodyText).toBeTruthy();
   });
@@ -109,7 +116,6 @@ test.describe('Product Management', () => {
   test('product cards should have action menu with Edit and Delete', async ({ page }) => {
     await waitForDataLoad(page);
 
-    const moreButtons = page.locator('button').filter({ has: page.locator('svg') });
     const productMoreBtn = page.locator('[class*="Card"]').first().getByRole('button').last();
 
     if (await productMoreBtn.isVisible().catch(() => false)) {
@@ -153,9 +159,12 @@ test.describe('Product Management', () => {
     // Should see "No products found" or the products grid should be empty
     const noProducts = page.locator('text=No products found');
     const isVisible = await noProducts.isVisible().catch(() => false);
+    
+    // Alternative: check if product cards count is 0
+    const productCards = page.locator('h3.font-semibold');
+    const cardCount = await productCards.count();
 
-    // If there are products in DB and filter yields no results, empty state should show
-    // If no products at all, empty state also shows
-    expect(typeof isVisible).toBe('boolean');
+    // Either empty state message is visible OR no products are shown
+    expect(isVisible || cardCount === 0).toBeTruthy();
   });
 });

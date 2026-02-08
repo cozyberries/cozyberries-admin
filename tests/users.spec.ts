@@ -25,36 +25,33 @@ test.describe('User Management', () => {
     await waitForDataLoad(page);
 
     const searchInput = page.getByPlaceholder(/search users/i);
-    await searchInput.fill('nonexistent_email_xyz');
-    await page.waitForTimeout(500);
-
-    // Either "No users found" or the table is empty
     const noUsersMsg = page.locator('text=No users found');
-    const isNoUsersVisible = await noUsersMsg.isVisible().catch(() => false);
-
-    // Could also check table row count
     const tableRows = page.locator('tbody tr');
-    const rowCount = await tableRows.count().catch(() => 0);
 
+    await searchInput.fill('nonexistent_email_xyz');
+
+    // Wait for filter to apply: "No users found" visible or table row count 0
+    await expect(noUsersMsg).toBeVisible({ timeout: 5000 });
+    const isNoUsersVisible = await noUsersMsg.isVisible();
+    const rowCount = await tableRows.count();
     expect(isNoUsersVisible || rowCount === 0).toBeTruthy();
   });
 
   test('clearing search should restore the full user list', async ({ page }) => {
     await waitForDataLoad(page);
 
-    // Store initial row count
-    const initialRows = await page.locator('tbody tr').count();
-
-    // Filter
     const searchInput = page.getByPlaceholder(/search users/i);
+    const tableRows = page.locator('tbody tr');
+
+    const initialRows = await tableRows.count();
+
     await searchInput.fill('nonexistent');
-    await page.waitForTimeout(500);
+    await expect(tableRows).toHaveCount(0, { timeout: 5000 });
 
-    // Clear
     await searchInput.fill('');
-    await page.waitForTimeout(500);
+    await expect(tableRows).toHaveCount(initialRows, { timeout: 5000 });
 
-    const restoredRows = await page.locator('tbody tr').count();
+    const restoredRows = await tableRows.count();
     expect(restoredRows).toBe(initialRows);
   });
 
@@ -141,8 +138,8 @@ test.describe('User Management', () => {
     const count = await rows.count();
 
     if (count > 0) {
-      // Click the action button on the first user row
-      const actionBtn = rows.first().getByRole('button').first();
+      // Click the actions menu button (last column = Actions, single button per row)
+      const actionBtn = rows.first().locator('td:last-child').getByRole('button');
       await actionBtn.click();
 
       await expect(page.locator('text=Send Email')).toBeVisible({ timeout: 5000 });

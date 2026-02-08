@@ -90,6 +90,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <Link
                   key={item.name}
                   href={item.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
                     ? "bg-blue-100 text-blue-700"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
@@ -117,7 +118,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col" data-testid="sidebar-desktop">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex justify-between h-16 items-center px-4">
             <h1 className="text-xl font-semibold text-gray-900">Admin Panel</h1>
@@ -131,6 +132,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <Link
                   key={item.name}
                   href={item.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
                     ? "bg-blue-100 text-blue-700"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
@@ -159,7 +161,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Mobile header */}
-        <div className="sticky top-0 z-40 lg:hidden">
+        <div className="sticky top-0 z-40 lg:hidden" data-testid="mobile-header">
           <div className="flex h-16 items-center justify-between bg-white px-4 shadow-sm">
             <Button
               variant="ghost"

@@ -12,7 +12,12 @@ export async function GET(request: NextRequest) {
     const featured = searchParams.get("featured") === "true";
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";
-    const sortBy = searchParams.get("sortBy") || "created_at";
+    
+    // Validate sortBy against allowlist
+    const allowedSortColumns = ["created_at", "name", "price", "updated_at"];
+    const sortByParam = searchParams.get("sortBy") || "created_at";
+    const sortBy = allowedSortColumns.includes(sortByParam) ? sortByParam : "created_at";
+    
     const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
     const offset = (page - 1) * limit;
 
@@ -27,7 +32,13 @@ export async function GET(request: NextRequest) {
       query = query.eq("category_id", category);
     }
     if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+      // Escape special characters to prevent injection
+      const escaped = search
+        .replace(/\\/g, "\\\\")
+        .replace(/%/g, "\\%")
+        .replace(/_/g, "\\_");
+      const safePattern = `%${escaped}%`;
+      query = query.or(`name.ilike.${safePattern},description.ilike.${safePattern}`);
     }
 
     const { data: products, error, count } = await query

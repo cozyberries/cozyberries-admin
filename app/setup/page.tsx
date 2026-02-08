@@ -80,10 +80,10 @@ export default function AdminSetupPage() {
         setSuccess(true);
         // Store the admin token temporarily
         localStorage.setItem("admin_token", data.token);
-        
-setTimeout(() => {
-        router.push("/");
-      }, 2000);
+
+        setTimeout(() => {
+          router.push("/");
+        }, 2000);
       } else {
         setError(data.error || "Failed to create admin user");
       }

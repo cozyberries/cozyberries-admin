@@ -17,18 +17,21 @@ export async function ensureLoggedIn(page: Page) {
  * If we get redirected to login, we log in first and then navigate to the target.
  */
 export async function gotoAuthenticated(page: Page, path: string) {
-  await page.goto(path);
-  // Give the page a moment to redirect if needed
-  await page.waitForTimeout(500);
+  await page.goto(path, { waitUntil: 'domcontentloaded' });
+  // Wait for redirect to login if the app sends us there
+  await page.waitForLoadState('networkidle');
   const wasOnLogin = page.url().includes('/login');
   if (wasOnLogin) {
     await loginAsAdmin(page);
-    // After login we're on '/', navigate to the intended page if it wasn't '/'
+    // After login, wait for successful navigation off login (default redirect is '/')
+    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+    // Navigate to the intended page if it wasn't '/'
     if (path !== '/') {
-      await page.goto(path);
-      await page.waitForTimeout(500);
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await page.waitForLoadState('networkidle');
     }
   }
+  // When not on login, the initial goto + networkidle above already ensured the page is loaded.
 }
 
 /**
@@ -62,8 +65,19 @@ export async function waitForDataLoad(page: Page, timeout = 15000) {
  * Includes retry logic for Supabase rate limiting.
  */
 export async function loginAsAdmin(page: Page, retries = 3) {
-  const email = process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL!;
-  const password = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD!;
+  const email = process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL;
+  const password = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD;
+
+  if (!email || email.trim() === '') {
+    throw new Error(
+      'Missing TEST_ADMIN_EMAIL or TEST_USER_EMAIL. Set one of these environment variables for login tests.'
+    );
+  }
+  if (!password || password.trim() === '') {
+    throw new Error(
+      'Missing TEST_ADMIN_PASSWORD or TEST_USER_PASSWORD. Set one of these environment variables for login tests.'
+    );
+  }
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     await page.goto('/login');
@@ -99,12 +113,13 @@ export async function loginAsAdmin(page: Page, retries = 3) {
 
 /**
  * Search within a management page search box.
+ * Waits for the search to be applied (network idle and/or results UI to settle).
  */
 export async function searchFor(page: Page, term: string) {
   const searchInput = page.getByPlaceholder(/search/i).first();
   await searchInput.fill(term);
-  // Wait for debounce / re-render
-  await page.waitForTimeout(500);
+  // Wait for debounced API requests to finish, or client-side re-render to settle
+  await page.waitForLoadState('networkidle');
 }
 
 /**

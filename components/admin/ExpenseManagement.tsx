@@ -165,8 +165,11 @@ export default function ExpenseManagement({}: ExpenseManagementProps) {
   };
 
   useEffect(() => {
-    fetchExpenses();
     fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    fetchExpenses();
   }, [filters]);
 
   const handleStatusUpdate = async (

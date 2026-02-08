@@ -26,11 +26,8 @@ test.describe('Admin Settings', () => {
   });
 
   test('should have Site Name input with default value', async ({ page }) => {
-    const siteNameInput = page.locator('input').filter({ hasText: '' }).first();
-    // The settings page should have input fields
-    const inputs = page.locator('input[type="text"], input[type="email"], input[type="number"], input[type="url"]');
-    const count = await inputs.count();
-    expect(count).toBeGreaterThan(0);
+    const siteNameInput = page.getByLabel('Site Name').first();
+    await expect(siteNameInput).toHaveValue('CozyBerries');
   });
 
   // ── Email Settings section ─────────────────────────────────────
@@ -81,13 +78,10 @@ test.describe('Admin Settings', () => {
 
     if (count > 0) {
       const firstSwitch = switches.first();
-      const initialState = await firstSwitch.getAttribute('data-state');
+      const initialState = (await firstSwitch.getAttribute('data-state')) ?? '';
 
       await firstSwitch.click();
-      await page.waitForTimeout(300);
-
-      const newState = await firstSwitch.getAttribute('data-state');
-      expect(newState).not.toBe(initialState);
+      await expect(firstSwitch).not.toHaveAttribute('data-state', initialState);
 
       // Toggle back
       await firstSwitch.click();
@@ -108,14 +102,17 @@ test.describe('Admin Settings', () => {
   // ── Form interactions ──────────────────────────────────────────
 
   test('should be able to edit Site Name', async ({ page }) => {
-    // Find the Site Name input by label relationship
     const siteNameLabel = page.locator('text=Site Name').first();
     await expect(siteNameLabel).toBeVisible();
 
-    // Get the input associated with the label (next sibling input)
-    const inputs = page.locator('input').all();
-    const allInputs = await inputs;
-    expect(allInputs.length).toBeGreaterThan(0);
+    const siteNameInput = page.getByLabel('Site Name').first();
+    const originalValue = await siteNameInput.inputValue();
+
+    await siteNameInput.fill('Edited Site Name');
+    await expect(siteNameInput).toHaveValue('Edited Site Name');
+
+    await siteNameInput.fill(originalValue);
+    await expect(siteNameInput).toHaveValue(originalValue);
   });
 
   test('should be able to edit input values', async ({ page }) => {
