@@ -39,6 +39,31 @@ AS $$
 DECLARE
   new_address_id UUID;
 BEGIN
+  -- Validate required parameters
+  IF p_address_line_1 IS NULL OR TRIM(p_address_line_1) = '' THEN
+    RAISE EXCEPTION 'Address line 1 is required and cannot be empty';
+  END IF;
+
+  IF p_city IS NULL OR TRIM(p_city) = '' THEN
+    RAISE EXCEPTION 'City is required and cannot be empty';
+  END IF;
+
+  IF p_state IS NULL OR TRIM(p_state) = '' THEN
+    RAISE EXCEPTION 'State is required and cannot be empty';
+  END IF;
+
+  IF p_postal_code IS NULL OR TRIM(p_postal_code) = '' THEN
+    RAISE EXCEPTION 'Postal code is required and cannot be empty';
+  END IF;
+
+  IF p_country IS NULL OR TRIM(p_country) = '' THEN
+    RAISE EXCEPTION 'Country is required and cannot be empty';
+  END IF;
+
+  IF p_full_name IS NULL OR TRIM(p_full_name) = '' THEN
+    RAISE EXCEPTION 'Full name is required and cannot be empty';
+  END IF;
+
   -- If setting as default, first clear all other defaults for this user
   IF p_is_default = TRUE THEN
     UPDATE user_addresses
@@ -109,3 +134,24 @@ $$;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION ensure_single_default_address TO authenticated;
+
+-- Overloaded function for UPDATE operations (clear defaults for a specific user/address)
+CREATE OR REPLACE FUNCTION ensure_single_default_address(
+  p_user_id UUID,
+  p_address_id UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Clear all other defaults for this user except the specified address
+  UPDATE user_addresses
+  SET is_default = FALSE, updated_at = NOW()
+  WHERE user_addresses.user_id = p_user_id
+    AND user_addresses.id != p_address_id
+    AND is_default = TRUE;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION ensure_single_default_address(UUID, UUID) TO authenticated;

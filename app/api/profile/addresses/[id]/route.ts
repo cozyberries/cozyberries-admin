@@ -35,23 +35,41 @@ export async function PUT(
       }
     }
 
-    // If setting this address as default, clear other defaults first
+    // If setting this address as default, use atomic RPC to ensure single default
     if (body.is_default === true) {
-      const { error: clearError } = await supabase
-        .from("user_addresses")
-        .update({ is_default: false })
-        .eq("user_id", user.id)
-        .neq("id", id);
+      const { data, error } = await supabase.rpc('ensure_single_default_address', {
+        p_user_id: user.id,
+        p_address_id: id
+      });
 
-      if (clearError) {
-        console.error("Failed to clear existing defaults:", clearError);
+      if (error) {
+        console.error("Failed to update default address:", error);
         return NextResponse.json(
           { error: "Failed to update defaults" },
           { status: 500 }
         );
       }
+
+      // The RPC cleared other defaults, now perform the regular update
+      const { data: updateData, error: updateError } = await supabase
+        .from("user_addresses")
+        .update(sanitizedUpdate)
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        return NextResponse.json(
+          { error: updateError.message },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json(updateData);
     }
 
+    // For non-default updates, use regular update
     const { data, error } = await supabase
       .from("user_addresses")
       .update(sanitizedUpdate)

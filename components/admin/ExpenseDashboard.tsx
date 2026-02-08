@@ -44,6 +44,9 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
       setLoading(true);
       setFetchError(null);
 
+      // Use a local variable to track errors instead of reading state
+      let localFetchError: string | null = null;
+
       // Fetch summary and recent expenses in parallel; errors are caught per-request
       const [summaryResponse, expensesResponse] = await Promise.all([
         authenticatedFetch("/api/expenses/summary").catch((e) => {
@@ -63,7 +66,7 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
         }
       } catch (parseError) {
         console.error("Failed to parse summary response:", parseError);
-        setFetchError("Failed to load expense summary. The data format may be invalid.");
+        localFetchError = "Failed to load expense summary. The data format may be invalid.";
       }
 
       try {
@@ -73,17 +76,19 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
         }
       } catch (parseError) {
         console.error("Failed to parse expenses response:", parseError);
-        if (!fetchError) {
-          setFetchError("Failed to load recent expenses. The data format may be invalid.");
+        if (!localFetchError) {
+          localFetchError = "Failed to load recent expenses. The data format may be invalid.";
         }
       }
 
       if ((!summaryResponse || !summaryResponse.ok) || (!expensesResponse || !expensesResponse.ok)) {
-        if (!fetchError) {
-          setFetchError("Failed to load expenses. Check that you're signed in as an admin and the API is available.");
+        if (!localFetchError) {
+          localFetchError = "Failed to load expenses. Check that you're signed in as an admin and the API is available.";
         }
       }
 
+      // Set error state once after all checks
+      setFetchError(localFetchError);
       setLoading(false);
     };
 
