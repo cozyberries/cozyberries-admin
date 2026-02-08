@@ -143,13 +143,33 @@ CREATE OR REPLACE FUNCTION ensure_single_default_address(
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  address_exists BOOLEAN;
 BEGIN
+  -- Verify that the address exists and belongs to the specified user
+  SELECT EXISTS(
+    SELECT 1
+    FROM user_addresses
+    WHERE id = p_address_id AND user_id = p_user_id
+  ) INTO address_exists;
+
+  -- If the address doesn't exist or doesn't belong to the user, raise an exception
+  IF NOT address_exists THEN
+    RAISE EXCEPTION 'Address with id % does not exist for user %', p_address_id, p_user_id;
+  END IF;
+
   -- Clear all other defaults for this user except the specified address
   UPDATE user_addresses
   SET is_default = FALSE, updated_at = NOW()
   WHERE user_addresses.user_id = p_user_id
     AND user_addresses.id != p_address_id
     AND is_default = TRUE;
+
+  -- Set the target address as default
+  UPDATE user_addresses
+  SET is_default = TRUE, updated_at = NOW()
+  WHERE user_addresses.id = p_address_id
+    AND user_addresses.user_id = p_user_id;
 END;
 $$;
 

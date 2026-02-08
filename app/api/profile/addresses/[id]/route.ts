@@ -37,36 +37,59 @@ export async function PUT(
 
     // If setting this address as default, use atomic RPC to ensure single default
     if (body.is_default === true) {
-      const { data, error } = await supabase.rpc('ensure_single_default_address', {
+      // Remove is_default from sanitizedUpdate since RPC handles it atomically
+      const { is_default, ...updateWithoutDefault } = sanitizedUpdate;
+      
+      // Call RPC to atomically clear other defaults AND set this address as default
+      const { error: rpcError } = await supabase.rpc('ensure_single_default_address', {
         p_user_id: user.id,
         p_address_id: id
       });
 
-      if (error) {
-        console.error("Failed to update default address:", error);
+      if (rpcError) {
+        console.error("Failed to update default address:", rpcError);
         return NextResponse.json(
           { error: "Failed to update defaults" },
           { status: 500 }
         );
       }
 
-      // The RPC cleared other defaults, now perform the regular update
-      const { data: updateData, error: updateError } = await supabase
+      // If there are other fields to update besides is_default, perform the update
+      if (Object.keys(updateWithoutDefault).length > 1) { // > 1 because updated_at is always present
+        const { data: updateData, error: updateError } = await supabase
+          .from("user_addresses")
+          .update(updateWithoutDefault)
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          return NextResponse.json(
+            { error: updateError.message },
+            { status: 400 }
+          );
+        }
+
+        return NextResponse.json(updateData);
+      }
+
+      // If only is_default was being updated, fetch and return the updated address
+      const { data: fetchedData, error: fetchError } = await supabase
         .from("user_addresses")
-        .update(sanitizedUpdate)
+        .select()
         .eq("id", id)
         .eq("user_id", user.id)
-        .select()
         .single();
 
-      if (updateError) {
+      if (fetchError) {
         return NextResponse.json(
-          { error: updateError.message },
+          { error: fetchError.message },
           { status: 400 }
         );
       }
 
-      return NextResponse.json(updateData);
+      return NextResponse.json(fetchedData);
     }
 
     // For non-default updates, use regular update

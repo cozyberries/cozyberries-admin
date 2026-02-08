@@ -45,7 +45,7 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
       setFetchError(null);
 
       // Use a local variable to track errors instead of reading state
-      let localFetchError: string | null = null;
+      const errors: string[] = [];
 
       // Fetch summary and recent expenses in parallel; errors are caught per-request
       const [summaryResponse, expensesResponse] = await Promise.all([
@@ -63,32 +63,33 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
         if (summaryResponse?.ok) {
           const summaryData = await summaryResponse.json();
           setSummary(summaryData);
+        } else if (summaryResponse !== null) {
+          errors.push("Failed to load expense summary.");
         }
       } catch (parseError) {
         console.error("Failed to parse summary response:", parseError);
-        localFetchError = "Failed to load expense summary. The data format may be invalid.";
+        errors.push("Failed to load expense summary. The data format may be invalid.");
       }
 
       try {
         if (expensesResponse?.ok) {
           const expensesData = await expensesResponse.json();
           setRecentExpenses(expensesData.expenses || []);
+        } else if (expensesResponse !== null) {
+          errors.push("Failed to load recent expenses.");
         }
       } catch (parseError) {
         console.error("Failed to parse expenses response:", parseError);
-        if (!localFetchError) {
-          localFetchError = "Failed to load recent expenses. The data format may be invalid.";
-        }
+        errors.push("Failed to load recent expenses. The data format may be invalid.");
       }
 
-      if ((!summaryResponse || !summaryResponse.ok) || (!expensesResponse || !expensesResponse.ok)) {
-        if (!localFetchError) {
-          localFetchError = "Failed to load expenses. Check that you're signed in as an admin and the API is available.";
-        }
+      // If we have no summary or expenses data and no specific errors captured, add a general message
+      if (!summaryResponse && !expensesResponse && errors.length === 0) {
+        errors.push("Failed to load expenses. Check that you're signed in as an admin and the API is available.");
       }
 
-      // Set error state once after all checks
-      setFetchError(localFetchError);
+      // Set error state with all accumulated errors
+      setFetchError(errors.length > 0 ? errors.join(" ") : null);
       setLoading(false);
     };
 
