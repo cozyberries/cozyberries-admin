@@ -59,16 +59,19 @@ test.describe('Expense Management', () => {
   test('expense list should have filter controls', async ({ page }) => {
     await waitForDataLoad(page);
 
-    // Check for actual filter controls
-    const statusFilter = page.getByRole('button', { name: /status|filter/i }).first();
-    const hasStatusFilter = await statusFilter.isVisible().catch(() => false);
-    
-    // Alternative: check for date or search filters
+    // The expense page uses shadcn Select components (role="combobox") for filters
+    const comboboxes = page.getByRole('combobox');
+    const comboboxCount = await comboboxes.count();
+
+    // Also check for date inputs or filter buttons as alternatives
     const dateFilters = page.locator('input[type="date"]');
     const dateFilterCount = await dateFilters.count();
-    
-    // Should have some filter UI present
-    expect(hasStatusFilter || dateFilterCount > 0).toBeTruthy();
+
+    const filterButtons = page.getByRole('button', { name: /status|filter|category|priority/i }).first();
+    const hasFilterButton = await filterButtons.isVisible().catch(() => false);
+
+    // Should have some filter UI present (select dropdowns, date inputs, or filter buttons)
+    expect(comboboxCount > 0 || dateFilterCount > 0 || hasFilterButton).toBeTruthy();
   });
 
   test('should show expense data in a table format', async ({ page }) => {

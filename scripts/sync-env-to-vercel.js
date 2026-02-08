@@ -26,7 +26,7 @@ for (const line of raw.split('\n')) {
   const key = trimmed.slice(0, eq).trim();
   let value = trimmed.slice(eq + 1).trim();
   if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1).replace(/\\"/g, '"');
-  if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1).replace(/\\'/g, "'");
+  else if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1).replace(/\\'/g, "'");
   if (skipKeys.has(key)) continue;
   vars.push([key, value]);
 }

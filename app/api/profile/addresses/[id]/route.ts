@@ -20,7 +20,18 @@ export async function PUT(
     }
 
     const { id } = await params;
-    const body = await request.json();
+    
+    // Parse JSON with explicit error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error("Invalid JSON in request body:", parseError);
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
 
     // Whitelist permitted fields to prevent mass-assignment
     const allowedFields = ["street", "city", "state", "zip", "country", "phone", "address_line_1", "address_line_2", "postal_code", "address_type", "label", "full_name", "is_default"];
@@ -38,7 +49,7 @@ export async function PUT(
     // If setting this address as default, use atomic RPC to ensure single default
     if (body.is_default === true) {
       // Remove is_default from sanitizedUpdate since RPC handles it atomically
-      const { is_default, ...updateWithoutDefault } = sanitizedUpdate;
+      const { is_default: _is_default, ...updateWithoutDefault } = sanitizedUpdate;
       
       // Call RPC to atomically clear other defaults AND set this address as default
       const { error: rpcError } = await supabase.rpc('ensure_single_default_address', {

@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const { data: categories, error } = await query;
 
     if (error) {
-      console.error("Error fetching expense categories:", error);
+      console.warn("Error fetching expense categories:", error);
       return NextResponse.json(
         { error: "Failed to fetch expense categories" },
         { status: 500 }

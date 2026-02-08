@@ -63,6 +63,18 @@ export function useAuthenticatedFetch() {
         const errorData = await response
           .json()
           .catch(() => ({ error: "Request failed" }));
+        
+        // Log detailed error for debugging
+        console.error("API Request failed:", {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData.error,
+          hasAuth: !!jwtToken,
+          isAuthenticated,
+          isAdmin,
+        });
+        
         throw new Error(
           errorData.error || `Request failed with status ${response.status}`
         );

@@ -37,7 +37,16 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const { fetch: authenticatedFetch } = useAuthenticatedFetch();
+  const { fetch: authenticatedFetch, isAuthenticated, isAdmin } = useAuthenticatedFetch();
+
+  // Log authentication state for debugging
+  useEffect(() => {
+    console.log("ExpenseDashboard - Auth State:", {
+      isAuthenticated,
+      isAdmin,
+      loading,
+    });
+  }, [isAuthenticated, isAdmin, loading]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -85,7 +94,13 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
 
       // If we have no summary or expenses data and no specific errors captured, add a general message
       if (!summaryResponse && !expensesResponse && errors.length === 0) {
-        errors.push("Failed to load expenses. Check that you're signed in as an admin and the API is available.");
+        if (!isAuthenticated) {
+          errors.push("You must be signed in to view expenses.");
+        } else if (!isAdmin) {
+          errors.push("Admin access is required to view expenses.");
+        } else {
+          errors.push("Failed to load expenses. Check that the API is available.");
+        }
       }
 
       // Set error state with all accumulated errors
@@ -94,7 +109,7 @@ export default function ExpenseDashboard({ className }: ExpenseDashboardProps) {
     };
 
     fetchData();
-  }, [authenticatedFetch]);
+  }, [authenticatedFetch, isAuthenticated, isAdmin]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

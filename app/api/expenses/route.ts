@@ -37,24 +37,10 @@ export async function GET(request: NextRequest) {
     const amount_max = searchParams.get("amount_max");
     const search = searchParams.get("search");
 
-    // First, get the expenses with category data
+    // First, get the expenses without category join
     let query = supabase
       .from("expenses")
-      .select(
-        `
-        *,
-        category_data:expense_categories(
-          id,
-          name,
-          slug,
-          display_name,
-          description,
-          color,
-          icon,
-          sort_order
-        )
-      `
-      )
+      .select("*")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -107,9 +93,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // If we have expenses, fetch the associated user profiles
+    // If we have expenses, fetch the associated category data and user profiles
     let expensesWithUsers = expenses || [];
     if (expenses && expenses.length > 0) {
+      // Get unique category IDs
+      const categoryIds = [...new Set(expenses.map((expense) => expense.category_id).filter(Boolean))];
+      
+      // Fetch category data if there are any category IDs
+      let categoriesMap: Record<string, any> = {};
+      if (categoryIds.length > 0) {
+        try {
+          const { data: categories, error: categoryError } = await supabase
+            .from("expense_categories")
+            .select("id, name, slug, display_name, description, color, icon, sort_order")
+            .in("id", categoryIds);
+
+          if (categoryError) {
+            console.error("Error fetching categories:", categoryError);
+          } else if (categories) {
+            categoriesMap = categories.reduce((acc, cat) => {
+              acc[cat.id] = cat;
+              return acc;
+            }, {} as Record<string, any>);
+          }
+        } catch (error) {
+          console.error("Error fetching category data:", error);
+        }
+      }
+
       const userIds = [...new Set(expenses.map((expense) => expense.user_id))];
 
       try {
@@ -138,7 +149,7 @@ export async function GET(request: NextRequest) {
             userIds.includes(user.id)
           ) || [];
 
-        // Join the user profiles with expenses
+        // Join the user profiles and categories with expenses
         expensesWithUsers = expenses.map((expense) => {
           const userProfile = userProfiles?.find(
             (user) => user.id === expense.user_id
@@ -146,9 +157,11 @@ export async function GET(request: NextRequest) {
           const authUser = authUsers?.find(
             (user) => user.id === expense.user_id
           );
+          const categoryData = expense.category_id ? categoriesMap[expense.category_id] : null;
 
           return {
             ...expense,
+            category_data: categoryData || null,
             user_profiles: userProfile
               ? {
                   ...userProfile,
@@ -159,7 +172,15 @@ export async function GET(request: NextRequest) {
         });
       } catch (error) {
         console.error("Error fetching user data:", error);
-        // Continue without user data rather than failing completely
+        // Continue without user data but still add category data
+        expensesWithUsers = expenses.map((expense) => {
+          const categoryData = expense.category_id ? categoriesMap[expense.category_id] : null;
+          return {
+            ...expense,
+            category_data: categoryData || null,
+            user_profiles: null,
+          };
+        });
       }
     }
 
@@ -171,8 +192,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching expenses:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch expenses";
     return NextResponse.json(
-      { error: "Failed to fetch expenses" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

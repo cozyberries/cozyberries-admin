@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       .select("status, amount, expense_date, category");
 
     if (fetchError) {
-      console.error("Supabase fetch error:", fetchError);
+      console.warn("Supabase fetch error:", fetchError);
       return NextResponse.json({ error: "Failed to fetch expenses" }, { status: 500 });
     }
 
@@ -106,6 +106,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error("Error fetching expense summary:", error);
-    return NextResponse.json({ error: "Failed to fetch expense summary" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch expense summary";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
