@@ -5,7 +5,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 
 const envPath = path.join(__dirname, '..', '.env.local');
 const skipKeys = new Set(['VERCEL_OIDC_TOKEN']);
@@ -39,12 +39,18 @@ for (const [key, value] of vars) {
   const tmpFile = path.join(tmpDir, `vercel-env-${key}-${Date.now()}`);
   try {
     fs.writeFileSync(tmpFile, value, 'utf8');
+    const cwd = path.join(__dirname, '..');
     for (const env of ['preview', 'production']) {
-      execSync(`vercel env add "${key}" ${env} --force < "${tmpFile}"`, {
-        stdio: 'inherit',
-        cwd: path.join(__dirname, '..'),
-        shell: true,
-      });
+      const fd = fs.openSync(tmpFile, 'r');
+      try {
+        const result = spawnSync('vercel', ['env', 'add', key, env, '--force'], {
+          stdio: [fd, 'inherit', 'inherit'],
+          cwd,
+        });
+        if (result.status !== 0) throw new Error(result.error || result.signal || `exit ${result.status}`);
+      } finally {
+        fs.closeSync(fd);
+      }
       added++;
       console.log(`Set ${key} for ${env}`);
     }
