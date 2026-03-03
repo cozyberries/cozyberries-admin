@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -73,7 +74,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white shadow-xl">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-xl font-semibold text-gray-900">Admin Panel</h1>
+            <Image src="/logo.png" alt="Cozyberries" width={120} height={40} className="object-contain" />
             <Button
               variant="ghost"
               size="icon"
@@ -121,7 +122,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col" data-testid="sidebar-desktop">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex justify-between h-16 items-center px-4">
-            <h1 className="text-xl font-semibold text-gray-900">Admin Panel</h1>
+            <Image src="/logo.png" alt="Cozyberries" width={120} height={40} className="object-contain" />
             <NotificationCenter />
           </div>
           <nav className="flex-1 px-4 py-4 space-y-2">
@@ -170,7 +171,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             >
               <Menu className="h-6 w-6" />
             </Button>
-            <h1 className="text-lg font-semibold text-gray-900">Admin Panel</h1>
+            <Image src="/logo.png" alt="Cozyberries" width={100} height={32} className="object-contain" />
             <div className="flex items-center space-x-2">
               <NotificationCenter />
               <Link href="/settings">

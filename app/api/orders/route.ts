@@ -5,14 +5,10 @@ import type { OrderCreate, OrderStatus } from "@/lib/types/order";
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
     if (!auth.isAuthenticated || !auth.isAdmin) {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     const supabase = createAdminSupabaseClient();
@@ -20,34 +16,19 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json(
-        { error: "Items are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Items are required" }, { status: 400 });
     }
-
     if (!body.customer_email) {
-      return NextResponse.json(
-        { error: "Customer email is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Customer email is required" }, { status: 400 });
     }
-
     if (!body.shipping_address) {
-      return NextResponse.json(
-        { error: "Shipping address is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Shipping address is required" }, { status: 400 });
     }
-
     if (!body.user_id || typeof body.user_id !== "string" || body.user_id.trim() === "") {
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    // Verify that the user exists in the database
+    // Verify user exists
     const { data: user, error: userError } = await supabase
       .from("user_profiles")
       .select("id")
@@ -55,20 +36,16 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (userError || !user) {
-      return NextResponse.json(
-        { error: "Invalid user ID: user does not exist" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid user ID: user does not exist" }, { status: 400 });
     }
 
-    // Prepare order data
-    const orderData: OrderCreate & { status?: OrderStatus; order_number?: string } = {
+    // Prepare order data (excluding items — stored in order_items table)
+    const orderData: Omit<OrderCreate, "items"> & { status?: OrderStatus } = {
       user_id: body.user_id,
       customer_email: body.customer_email,
       customer_phone: body.customer_phone,
       shipping_address: body.shipping_address,
       billing_address: body.billing_address,
-      items: body.items,
       subtotal: body.subtotal,
       delivery_charge: body.delivery_charge || 0,
       tax_amount: body.tax_amount || 0,
@@ -77,7 +54,7 @@ export async function POST(request: NextRequest) {
       notes: body.notes,
       status: body.status || "payment_pending",
     };
-    
+
     // Create the order
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -93,26 +70,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ order }, { status: 201 });
+    // Insert items into order_items table
+    const orderItemsData = body.items.map((item: {
+      id?: string;
+      name: string;
+      price: number;
+      quantity: number;
+      image?: string;
+      product_details?: Record<string, unknown>;
+    }) => ({
+      order_id: order.id,
+      product_id: item.id || null,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      image: item.image || null,
+      product_details: item.product_details || null,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .insert(orderItemsData);
+
+    if (itemsError) {
+      console.error("Error inserting order items:", itemsError);
+      // Order was created; log but don't fail the request
+    }
+
+    return NextResponse.json({ order: { ...order, items: body.items } }, { status: 201 });
   } catch (error) {
     console.error("Error creating order:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
     if (!auth.isAuthenticated || !auth.isAdmin) {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     const supabase = createAdminSupabaseClient();
@@ -130,16 +127,9 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (status && status !== "all") {
-      query = query.eq("status", status);
-    }
-
-    // Apply date filters
-    if (fromDate) {
-      query = query.gte("created_at", fromDate);
-    }
+    if (status && status !== "all") query = query.eq("status", status);
+    if (fromDate) query = query.gte("created_at", fromDate);
     if (toDate) {
-      // Add end of day to toDate to include the entire day
       const endOfDay = new Date(toDate);
       endOfDay.setHours(23, 59, 59, 999);
       query = query.lte("created_at", endOfDay.toISOString());
@@ -155,10 +145,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch payments for all orders
-    const orderIds = orders?.map((order) => order.id) || [];
+    const orderIds = orders?.map((o) => o.id) || [];
+
+    // Batch-fetch order_items
+    const itemsMap: Record<string, unknown[]> = {};
+    if (orderIds.length > 0) {
+      const { data: orderItems, error: itemsError } = await supabase
+        .from("order_items")
+        .select("*")
+        .in("order_id", orderIds);
+
+      if (itemsError) {
+        console.error("Error fetching order items:", itemsError);
+      } else if (orderItems) {
+        orderItems.forEach((item) => {
+          if (!itemsMap[item.order_id]) itemsMap[item.order_id] = [];
+          itemsMap[item.order_id].push(item);
+        });
+      }
+    }
+
+    // Batch-fetch payments
     const paymentsMap: Record<string, unknown[]> = {};
-    
     if (orderIds.length > 0) {
       const { data: payments, error: paymentsError } = await supabase
         .from("payments")
@@ -167,33 +175,22 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false });
 
       if (!paymentsError && payments) {
-        // Group payments by order_id
         payments.forEach((payment) => {
-          if (!paymentsMap[payment.order_id]) {
-            paymentsMap[payment.order_id] = [];
-          }
+          if (!paymentsMap[payment.order_id]) paymentsMap[payment.order_id] = [];
           paymentsMap[payment.order_id].push(payment);
         });
       }
     }
 
-    // Attach payments to orders
-    const ordersWithPayments = orders?.map((order) => ({
+    const ordersWithData = orders?.map((order) => ({
       ...order,
+      items: itemsMap[order.id] || [],
       payments: paymentsMap[order.id] || [],
     })) || [];
 
-    console.log(`Fetched ${orders?.length || 0} orders from database`);
-
-    return NextResponse.json({
-      orders: ordersWithPayments,
-      total: orders?.length || 0,
-    });
+    return NextResponse.json({ orders: ordersWithData, total: orders?.length || 0 });
   } catch (error) {
     console.error("Error fetching orders:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch orders" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
   }
 }

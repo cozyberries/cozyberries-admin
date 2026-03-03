@@ -128,3 +128,69 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const auth = await authenticateRequest(request);
+    if (!auth.isAuthenticated || !auth.isAdmin) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
+    const supabase = createAdminSupabaseClient();
+    const body = await request.json();
+
+    // Phone is required and must be E.164
+    if (!body.phone || typeof body.phone !== "string") {
+      return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+    }
+    const phone = body.phone.startsWith("+") ? body.phone : `+${body.phone}`;
+
+    // Create Supabase Auth user
+    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+      phone,
+      email: body.email || undefined,
+      phone_confirm: true,
+      ...(body.email ? { email_confirm: true } : {}),
+      user_metadata: {
+        ...(body.full_name ? { full_name: body.full_name } : {}),
+      },
+    });
+
+    if (createError) {
+      return NextResponse.json(
+        { error: `Failed to create user: ${createError.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Insert user profile (non-fatal if it fails)
+    const { error: profileError } = await supabase.from("user_profiles").insert({
+      id: newUser.user.id,
+      phone,
+      email: body.email || null,
+      full_name: body.full_name || null,
+      role: "customer",
+      is_active: true,
+      is_verified: false,
+    });
+
+    if (profileError) {
+      console.error("Failed to create user profile:", profileError);
+    }
+
+    return NextResponse.json(
+      {
+        user: {
+          id: newUser.user.id,
+          email: body.email || null,
+          phone,
+          full_name: body.full_name || null,
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Error creating user:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
