@@ -1,18 +1,18 @@
 export interface ProductImage {
-  id: string;
-  storage_path: string;
+  url: string;
   is_primary?: boolean;
   display_order?: number;
-  url?: string;
+  product_slug?: string;
 }
 
+/** Matches the real `product_variants` table schema. */
 export interface ProductVariant {
-  id: string;
-  sku: string;
+  slug: string;
+  product_slug: string;
+  size_slug: string;
+  color_slug: string;
   price: number;
   stock_quantity: number;
-  size: string;
-  color: string;
 }
 
 export interface RelatedProduct {
@@ -34,36 +34,58 @@ export interface SimplifiedProduct {
   is_featured?: boolean;
 }
 
-export interface ProductBase {
+/**
+ * Admin-facing product shape returned by GET /api/products.
+ *
+ * The real DB uses `slug` as the primary key (no `id` column).
+ * The API normalises this by adding `id = slug` to every response
+ * object so the rest of the frontend can keep using `product.id`.
+ */
+export interface Product {
+  /** Alias for `slug` — injected by the API for frontend compatibility. */
+  id: string;
+  /** Real primary key column in the `products` table. */
+  slug: string;
   name: string;
   description?: string;
   price: number;
-  category?: string;
+  care_instructions?: string;
+  stock_quantity?: number;
+  is_featured?: boolean;
+  is_active?: boolean;
+  /** References `categories.slug`. */
+  category_slug?: string;
+  gender_slug?: string;
+  size_slugs?: string[];
+  color_slugs?: string[];
+  created_at: string;
+  updated_at?: string;
+  /** Injected from the `categories` join. */
+  categories?: { name: string; slug: string };
+  /** Flattened from the `product_images` join (primary image first). */
   images?: string[];
+  /** Joined from `product_variants`. */
+  variants?: ProductVariant[];
 }
 
-export type ProductCreate = ProductBase;
+export interface ProductCreate {
+  name: string;
+  description?: string;
+  price: number;
+  stock_quantity?: number;
+  is_featured?: boolean;
+  category_slug?: string;
+  images?: string[];
+}
 
 export interface ProductUpdate {
   name?: string;
   description?: string;
   price?: number;
-  category_id?: string; 
+  category_slug?: string;
   stock_quantity?: number;
   is_featured?: boolean;
-  images?: string[];
-}
-
-
-export interface Product extends ProductBase {
-  id: string;
-  created_at: string;
-  updated_at?: string;
-  slug?: string;
-  stock_quantity?: number;
-  is_featured?: boolean;
-  category_id?: string;
-  categories?: { name: string };
+  is_active?: boolean;
   images?: string[];
 }
 
@@ -77,7 +99,6 @@ export interface CategoryImage {
 }
 
 export interface Category {
-  id: string;
   name: string;
   slug: string;
   description?: string;
