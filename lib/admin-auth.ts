@@ -63,10 +63,23 @@ export function generateAdminJWT(admin: AdminUser): string {
 }
 
 export function verifyAdminJWT(token: string): AdminTokenPayload {
-  return verify(token, getJwtSecret(), {
+  const decoded = verify(token, getJwtSecret(), {
     issuer: 'cozyberries-admin',
     audience: 'cozyberries-admin-panel',
-  }) as unknown as AdminTokenPayload;
+  });
+
+  if (
+    !decoded ||
+    typeof decoded !== 'object' ||
+    typeof (decoded as any).id !== 'string' ||
+    typeof (decoded as any).username !== 'string' ||
+    typeof (decoded as any).role !== 'string' ||
+    !['admin', 'super_admin'].includes((decoded as any).role)
+  ) {
+    throw new Error('Invalid admin token payload');
+  }
+
+  return decoded as AdminTokenPayload;
 }
 
 // ---- Cookie Management ----
@@ -138,10 +151,15 @@ export async function loginAdmin(identifier: string, password: string): Promise<
   }
 
   // Update last_login_at
-  await supabase
+  const loginTimestamp = new Date().toISOString();
+  const { error: updateError } = await supabase
     .from('admin_users')
-    .update({ last_login_at: new Date().toISOString() })
+    .update({ last_login_at: loginTimestamp })
     .eq('id', admin.id);
+
+  if (updateError) {
+    console.error(`Failed to update last_login_at for admin ${admin.id} at ${loginTimestamp}:`, updateError.message);
+  }
 
   const adminUser: AdminUser = {
     id: admin.id,

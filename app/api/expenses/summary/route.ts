@@ -3,6 +3,13 @@ import { createAdminSupabaseClient } from "@/lib/supabase-server";
 import { authenticateRequest } from "@/lib/jwt-auth";
 import { ExpenseCategory, ExpenseSummary } from "@/lib/types/expense";
 
+type ExpenseRow = {
+  amount: number;
+  expense_date: string;
+  status?: string;
+  category_data?: { name: string; display_name: string } | null;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request);
@@ -12,29 +19,9 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createAdminSupabaseClient();
+    const expenses = await fetchExpenses(supabase);
 
-    // Fetch expenses with category data via FK join
-    // Use category_data join instead of direct category column
-    const { data: expenses, error: fetchError } = await supabase
-      .from("expenses")
-      .select("amount, expense_date, category_data:expense_categories(name, display_name)");
-
-    if (fetchError) {
-      // If the join fails (e.g., no category_id FK), fall back to just amount + date
-      console.warn("Supabase fetch with join failed, trying without category:", fetchError);
-      const { data: fallbackExpenses, error: fallbackError } = await supabase
-        .from("expenses")
-        .select("amount, expense_date");
-
-      if (fallbackError) {
-        console.warn("Supabase fetch error:", fallbackError);
-        return NextResponse.json({ error: "Failed to fetch expenses" }, { status: 500 });
-      }
-
-      return NextResponse.json(buildSummary(fallbackExpenses || [], false));
-    }
-
-    return NextResponse.json(buildSummary(expenses || [], true));
+    return NextResponse.json(buildSummary(expenses));
 
   } catch (error) {
     console.error("Error fetching expense summary:", error);
@@ -42,10 +29,56 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function buildSummary(
-  expenses: Array<{ amount: number; expense_date: string; category_data?: { name: string; display_name: string } | null }>,
-  hasCategories: boolean
-): ExpenseSummary {
+// Cached schema capabilities — probed once per process lifetime
+let schemaProbed = false;
+let hasStatusColumn = false;
+let hasCategoryJoin = false;
+
+/**
+ * Probe the expenses table schema once to discover available columns/joins.
+ * Results are cached so subsequent requests use the optimal query directly.
+ */
+async function probeSchema(supabase: ReturnType<typeof createAdminSupabaseClient>): Promise<void> {
+  if (schemaProbed) return;
+
+  // Check if category join works
+  const { error: catErr } = await supabase
+    .from("expenses")
+    .select("amount, category_data:expense_categories(name, display_name)")
+    .limit(0);
+  hasCategoryJoin = !catErr;
+
+  // Check if status column exists
+  const { error: statusErr } = await supabase
+    .from("expenses")
+    .select("amount, status")
+    .limit(0);
+  hasStatusColumn = !statusErr;
+
+  schemaProbed = true;
+}
+
+async function fetchExpenses(supabase: ReturnType<typeof createAdminSupabaseClient>): Promise<ExpenseRow[]> {
+  await probeSchema(supabase);
+
+  // Build select string based on known schema capabilities
+  const columns = ["amount", "expense_date"];
+  if (hasStatusColumn) columns.push("status");
+
+  let selectStr = columns.join(", ");
+  if (hasCategoryJoin) {
+    selectStr += ", category_data:expense_categories(name, display_name)";
+  }
+
+  const { data, error } = await supabase
+    .from("expenses")
+    .select(selectStr);
+
+  if (error) throw new Error(`Failed to fetch expenses: ${error.message}`);
+  return data || [];
+}
+
+function buildSummary(expenses: ExpenseRow[]): ExpenseSummary {
   const emptySummary: ExpenseSummary = {
     total_expenses: 0,
     total_amount: 0,
@@ -71,18 +104,38 @@ function buildSummary(
     total_amount: expenses.reduce((sum, e) => sum + (e.amount || 0), 0),
   };
 
-  // === MONTHLY TRENDS ===
+  // === STATUS BREAKDOWN ===
+  const hasStatus = expenses.some(e => e.status != null);
+  if (hasStatus) {
+    const statusGroups: Record<string, { count: number; amount: number }> = {};
+    for (const e of expenses) {
+      const s = e.status ?? "unknown";
+      if (!statusGroups[s]) statusGroups[s] = { count: 0, amount: 0 };
+      statusGroups[s].count += 1;
+      statusGroups[s].amount += e.amount || 0;
+    }
+    summary.pending_expenses = statusGroups["pending"]?.count || 0;
+    summary.approved_expenses = statusGroups["approved"]?.count || 0;
+    summary.rejected_expenses = statusGroups["rejected"]?.count || 0;
+    summary.paid_expenses = statusGroups["paid"]?.count || 0;
+    summary.pending_amount = statusGroups["pending"]?.amount || 0;
+    summary.approved_amount = statusGroups["approved"]?.amount || 0;
+    summary.rejected_amount = statusGroups["rejected"]?.amount || 0;
+    summary.paid_amount = statusGroups["paid"]?.amount || 0;
+  }
+
+  // === MONTHLY TRENDS (last 6 months) ===
   const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const cutoff = sixMonthsAgo.toISOString().substring(0, 7); // YYYY-MM
 
   const monthlyGroups: Record<string, { total_amount: number; count: number }> = {};
 
   expenses
     .filter(e => {
       if (!e.expense_date) return false;
-      const date = new Date(e.expense_date);
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+      const month = e.expense_date.substring(0, 7);
+      return month >= cutoff;
     })
     .forEach(e => {
       const month = e.expense_date.substring(0, 7); // YYYY-MM
@@ -91,13 +144,16 @@ function buildSummary(
       monthlyGroups[month].count += 1;
     });
 
-  summary.monthly_trends = Object.entries(monthlyGroups).map(([month, data]) => ({
-    month,
-    total_amount: data.total_amount,
-    count: data.count,
-  }));
+  summary.monthly_trends = Object.entries(monthlyGroups)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, data]) => ({
+      month,
+      total_amount: data.total_amount,
+      count: data.count,
+    }));
 
   // === CATEGORY BREAKDOWN ===
+  const hasCategories = expenses.some(e => e.category_data != null);
   if (hasCategories) {
     const categoryGroups: Record<string, { total_amount: number; count: number }> = {};
 

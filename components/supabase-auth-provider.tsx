@@ -96,14 +96,25 @@ export function AdminAuthProvider({
 
   const signOut = useCallback(async () => {
     try {
-      await fetch("/api/auth/admin-logout", { method: "POST" });
-    } catch (error) {
-      console.error("Sign out error:", error);
-    } finally {
+      const response = await fetch("/api/auth/admin-logout", { method: "POST" });
+      if (!response.ok) {
+        const msg = `Logout request failed with status ${response.status}`;
+        console.error(msg);
+        // Still clear local state — the cookie may be invalid anyway
+        setUser(null);
+        setJwtToken(null);
+        return { success: false, error: { message: msg } };
+      }
       setUser(null);
       setJwtToken(null);
+      return { success: true };
+    } catch (error) {
+      console.error("Sign out error:", error);
+      // Clear local state even on network failure to avoid stale UI
+      setUser(null);
+      setJwtToken(null);
+      return { success: false, error: { message: "Network error during sign out" } };
     }
-    return { success: true };
   }, []);
 
   // Computed values

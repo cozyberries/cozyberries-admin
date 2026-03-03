@@ -9,7 +9,7 @@ test.describe('Authentication Flow', () => {
     const password = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD;
     if (!identifier) {
       throw new Error(
-        'Missing required env: set TEST_ADMIN_USERNAME or TEST_ADMIN_EMAIL for auth tests'
+        'Missing required env: set TEST_ADMIN_USERNAME, TEST_ADMIN_EMAIL, or TEST_USER_EMAIL for auth tests'
       );
     }
     if (!password) {

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.admin_users (
   last_login_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by UUID REFERENCES public.admin_users(id)
+  created_by UUID REFERENCES public.admin_users(id) ON DELETE SET NULL
 );
 
 -- Index for username lookups (login)

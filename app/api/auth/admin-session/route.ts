@@ -3,6 +3,19 @@ import { getSessionFromCookie, generateAdminJWT } from '@/lib/admin-auth';
 import type { AdminUser } from '@/lib/admin-auth';
 import { createAdminSupabaseClient } from '@/lib/supabase-server';
 
+function isValidAdminUser(obj: unknown): obj is AdminUser {
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  return (
+    typeof o.id === 'string' &&
+    typeof o.username === 'string' &&
+    (o.email === null || typeof o.email === 'string') &&
+    (o.full_name === null || typeof o.full_name === 'string') &&
+    (o.role === 'admin' || o.role === 'super_admin') &&
+    typeof o.is_active === 'boolean'
+  );
+}
+
 export async function GET() {
   try {
     const session = await getSessionFromCookie();
@@ -30,8 +43,16 @@ export async function GET() {
       );
     }
 
-    // Generate a fresh token for the client
-    const token = generateAdminJWT(admin as AdminUser);
+    if (!isValidAdminUser(admin)) {
+      console.error('Admin record has unexpected shape:', Object.keys(admin));
+      return NextResponse.json(
+        { authenticated: false, error: 'Invalid admin record' },
+        { status: 500 }
+      );
+    }
+
+    // Generate a fresh token for the client (needed by useAuthenticatedFetch Bearer header)
+    const token = generateAdminJWT(admin);
 
     return NextResponse.json({
       authenticated: true,

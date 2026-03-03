@@ -20,7 +20,8 @@ export default function LoginPage() {
     setIsLoading(true);
     setError("");
 
-    const { error } = await signIn(identifier, password);
+    const trimmedIdentifier = identifier.trim();
+    const { error } = await signIn(trimmedIdentifier, password);
 
     if (error) {
       setError(error.message);

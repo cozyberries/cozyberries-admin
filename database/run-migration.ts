@@ -32,6 +32,21 @@ const sql = readFileSync(sqlPath, 'utf-8');
 
 console.log(`Running migration: ${sqlPath}`);
 
+function buildSslConfig(): { rejectUnauthorized: boolean; ca?: string } {
+  const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
+  const config: { rejectUnauthorized: boolean; ca?: string } = { rejectUnauthorized };
+
+  const ca = process.env.DB_SSL_CA;
+  const caPath = process.env.DB_SSL_CA_PATH;
+  if (ca) {
+    config.ca = ca;
+  } else if (caPath) {
+    config.ca = readFileSync(resolve(caPath), 'utf-8');
+  }
+
+  return config;
+}
+
 async function runMigration() {
   const { default: pg } = await import('pg');
   const client = new pg.Client({
@@ -40,16 +55,30 @@ async function runMigration() {
     user: POSTGRES_USER,
     password: POSTGRES_PASSWORD,
     database: POSTGRES_DATABASE,
-    ssl: { rejectUnauthorized: false },
+    ssl: buildSslConfig(),
   });
 
+  let transactionStarted = false;
   try {
     await client.connect();
     console.log('Connected to database');
 
+    await client.query('BEGIN');
+    transactionStarted = true;
+
     await client.query(sql);
+
+    await client.query('COMMIT');
     console.log('Migration executed successfully!');
   } catch (err: any) {
+    if (transactionStarted) {
+      try {
+        await client.query('ROLLBACK');
+        console.log('Transaction rolled back');
+      } catch (rollbackErr: any) {
+        console.error('Rollback failed:', rollbackErr.message || rollbackErr);
+      }
+    }
     console.error('Migration failed:', err.message || err);
     process.exit(1);
   } finally {

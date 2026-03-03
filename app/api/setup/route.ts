@@ -35,6 +35,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify no admin users exist yet (prevent duplicate setup)
+    const supabase = createAdminSupabaseClient();
+    const { data: existingAdmins } = await supabase
+      .from('admin_users')
+      .select('id')
+      .limit(1);
+
+    if (existingAdmins && existingAdmins.length > 0) {
+      return NextResponse.json(
+        { error: "Setup already completed. An admin user already exists." },
+        { status: 409 }
+      );
+    }
+
     // Create admin in admin_users table
     const result = await createAdmin({
       username,

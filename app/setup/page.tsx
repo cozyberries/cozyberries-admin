@@ -18,37 +18,62 @@ export default function AdminSetupPage() {
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [error, setError] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const [success, setSuccess] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    checkSetupStatus();
-  }, []);
+    const checkSetupStatus = async () => {
+      try {
+        const response = await fetch("/api/setup");
+        const data = await response.json();
 
-  const checkSetupStatus = async () => {
-    try {
-      const response = await fetch("/api/setup");
-      const data = await response.json();
-      
-      if (response.ok) {
-        setNeedsSetup(data.needsSetup);
-        if (!data.needsSetup) {
-          // Admin already exists, redirect to dashboard
-          router.push("/");
+        if (response.ok) {
+          setNeedsSetup(data.needsSetup);
+          if (!data.needsSetup) {
+            router.push("/");
+          }
+        } else {
+          setError("Failed to check setup status");
         }
-      } else {
+      } catch (err) {
         setError("Failed to check setup status");
+      } finally {
+        setCheckingStatus(false);
       }
-    } catch (err) {
-      setError("Failed to check setup status");
-    } finally {
-      setCheckingStatus(false);
+    };
+
+    checkSetupStatus();
+  }, [router]);
+
+  const validateUsername = (value: string, isSubmit = false): string => {
+    if (isSubmit && value.length === 0) {
+      return "Username is required";
     }
+    if (value.length > 0 && value.length < 3) {
+      return "Username must be at least 3 characters";
+    }
+    if (value.length > 0 && !/^[a-zA-Z0-9_]+$/.test(value)) {
+      return "Username can only contain letters, numbers, and underscores";
+    }
+    return "";
+  };
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const trimmed = e.target.value.trim();
+    setUsername(trimmed);
+    setUsernameError(validateUsername(trimmed));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    const usernameErr = validateUsername(username, true);
+    if (usernameErr) {
+      setUsernameError(usernameErr);
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -174,10 +199,15 @@ export default function AdminSetupPage() {
                 id="username"
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={handleUsernameChange}
                 placeholder="admin"
+                pattern="[a-zA-Z0-9_]+"
+                minLength={3}
                 required
               />
+              {usernameError && (
+                <p className="text-xs text-red-600 mt-1">{usernameError}</p>
+              )}
             </div>
 
             <div>
@@ -232,7 +262,7 @@ export default function AdminSetupPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading}
+              disabled={loading || !!usernameError}
             >
               {loading ? (
                 <>
