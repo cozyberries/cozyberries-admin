@@ -50,6 +50,9 @@ export function AdminAuthProvider({
           const data = await response.json();
           if (isMounted && data.authenticated && data.user) {
             setUser(data.user);
+            if (data.token) {
+              setJwtToken(data.token);
+            }
           }
         }
       } catch (error) {

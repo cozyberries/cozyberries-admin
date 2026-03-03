@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getSessionFromCookie } from '@/lib/admin-auth';
+import { getSessionFromCookie, generateAdminJWT } from '@/lib/admin-auth';
+import type { AdminUser } from '@/lib/admin-auth';
 import { createAdminSupabaseClient } from '@/lib/supabase-server';
 
 export async function GET() {
@@ -29,9 +30,13 @@ export async function GET() {
       );
     }
 
+    // Generate a fresh token for the client
+    const token = generateAdminJWT(admin as AdminUser);
+
     return NextResponse.json({
       authenticated: true,
       user: admin,
+      token,
     });
   } catch (error) {
     console.error('Session check error:', error);

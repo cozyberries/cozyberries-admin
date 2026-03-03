@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
 import { authenticateRequest } from "@/lib/jwt-auth";
 import { ExpenseCategory, ExpenseSummary } from "@/lib/types/expense";
 
@@ -11,85 +11,98 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
 
-    // Fetch all expenses with status and amount
+    // Fetch expenses with category data via FK join
+    // Use category_data join instead of direct category column
     const { data: expenses, error: fetchError } = await supabase
       .from("expenses")
-      .select("status, amount, expense_date, category");
+      .select("amount, expense_date, category_data:expense_categories(name, display_name)");
 
     if (fetchError) {
-      console.warn("Supabase fetch error:", fetchError);
-      return NextResponse.json({ error: "Failed to fetch expenses" }, { status: 500 });
+      // If the join fails (e.g., no category_id FK), fall back to just amount + date
+      console.warn("Supabase fetch with join failed, trying without category:", fetchError);
+      const { data: fallbackExpenses, error: fallbackError } = await supabase
+        .from("expenses")
+        .select("amount, expense_date");
+
+      if (fallbackError) {
+        console.warn("Supabase fetch error:", fallbackError);
+        return NextResponse.json({ error: "Failed to fetch expenses" }, { status: 500 });
+      }
+
+      return NextResponse.json(buildSummary(fallbackExpenses || [], false));
     }
 
-    if (!expenses || expenses.length === 0) {
-      return NextResponse.json({
-        total_expenses: 0,
-        total_amount: 0,
-        pending_expenses: 0,
-        approved_expenses: 0,
-        rejected_expenses: 0,
-        paid_expenses: 0,
-        pending_amount: 0,
-        approved_amount: 0,
-        rejected_amount: 0,
-        paid_amount: 0,
-        monthly_trends: [],
-        category_breakdown: []
-      });
-    }
+    return NextResponse.json(buildSummary(expenses || [], true));
 
-    // === SUMMARY COUNTS ===
-    const summary: ExpenseSummary = {
-      total_expenses: expenses.length,
-      total_amount: expenses.reduce((sum, e) => sum + (e.amount || 0), 0),
-      pending_expenses: expenses.filter(e => e.status === "pending").length,
-      approved_expenses: expenses.filter(e => e.status === "approved").length,
-      rejected_expenses: expenses.filter(e => e.status === "rejected").length,
-      paid_expenses: expenses.filter(e => e.status === "paid").length,
-      pending_amount: expenses.filter(e => e.status === "pending").reduce((sum, e) => sum + (e.amount || 0), 0),
-      approved_amount: expenses.filter(e => e.status === "approved").reduce((sum, e) => sum + (e.amount || 0), 0),
-      rejected_amount: expenses.filter(e => e.status === "rejected").reduce((sum, e) => sum + (e.amount || 0), 0),
-      paid_amount: expenses.filter(e => e.status === "paid").reduce((sum, e) => sum + (e.amount || 0), 0),
-      monthly_trends: [],
-      category_breakdown: []
-    };
+  } catch (error) {
+    console.error("Error fetching expense summary:", error);
+    return NextResponse.json({ error: "Failed to fetch expense summary" }, { status: 500 });
+  }
+}
 
-    // === MONTHLY TRENDS ===
-    // Get current month and year
-    const now = new Date();
-    const currentMonth = now.getMonth(); // 0–11
-    const currentYear = now.getFullYear();
+function buildSummary(
+  expenses: Array<{ amount: number; expense_date: string; category_data?: { name: string; display_name: string } | null }>,
+  hasCategories: boolean
+): ExpenseSummary {
+  const emptySummary: ExpenseSummary = {
+    total_expenses: 0,
+    total_amount: 0,
+    pending_expenses: 0,
+    approved_expenses: 0,
+    rejected_expenses: 0,
+    paid_expenses: 0,
+    pending_amount: 0,
+    approved_amount: 0,
+    rejected_amount: 0,
+    paid_amount: 0,
+    monthly_trends: [],
+    category_breakdown: []
+  };
 
-    const monthlyGroups: Record<string, { total_amount: number; count: number }> = {};
+  if (expenses.length === 0) {
+    return emptySummary;
+  }
 
-    expenses
-      ?.filter(e => {
-        if (!e.expense_date) return false;
-        const date = new Date(e.expense_date);
-        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-      })
-      .forEach(e => {
-        const month = e.expense_date.substring(0, 7); // YYYY-MM
-        if (!monthlyGroups[month]) monthlyGroups[month] = { total_amount: 0, count: 0 };
-        monthlyGroups[month].total_amount += e.amount || 0;
-        monthlyGroups[month].count += 1;
-      });
+  const summary: ExpenseSummary = {
+    ...emptySummary,
+    total_expenses: expenses.length,
+    total_amount: expenses.reduce((sum, e) => sum + (e.amount || 0), 0),
+  };
 
-    summary.monthly_trends = Object.entries(monthlyGroups).map(([month, data]) => ({
-      month,
-      total_amount: data.total_amount,
-      count: data.count,
-    }));
+  // === MONTHLY TRENDS ===
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
+  const monthlyGroups: Record<string, { total_amount: number; count: number }> = {};
 
+  expenses
+    .filter(e => {
+      if (!e.expense_date) return false;
+      const date = new Date(e.expense_date);
+      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    })
+    .forEach(e => {
+      const month = e.expense_date.substring(0, 7); // YYYY-MM
+      if (!monthlyGroups[month]) monthlyGroups[month] = { total_amount: 0, count: 0 };
+      monthlyGroups[month].total_amount += e.amount || 0;
+      monthlyGroups[month].count += 1;
+    });
 
-    // === CATEGORY BREAKDOWN ===
+  summary.monthly_trends = Object.entries(monthlyGroups).map(([month, data]) => ({
+    month,
+    total_amount: data.total_amount,
+    count: data.count,
+  }));
+
+  // === CATEGORY BREAKDOWN ===
+  if (hasCategories) {
     const categoryGroups: Record<string, { total_amount: number; count: number }> = {};
 
     expenses.forEach(exp => {
-      const cat = exp.category || "Uncategorized";
+      const cat = exp.category_data?.display_name || exp.category_data?.name || "Uncategorized";
       if (!categoryGroups[cat]) categoryGroups[cat] = { total_amount: 0, count: 0 };
       categoryGroups[cat].total_amount += exp.amount || 0;
       categoryGroups[cat].count += 1;
@@ -100,13 +113,7 @@ export async function GET(request: NextRequest) {
       total_amount: data.total_amount,
       count: data.count
     }));
-
-    // Return real data (no mock)
-    return NextResponse.json(summary);
-
-  } catch (error) {
-    console.error("Error fetching expense summary:", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch expense summary";
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
+
+  return summary;
 }
