@@ -52,6 +52,7 @@ export interface Product {
   care_instructions?: string;
   stock_quantity?: number;
   is_featured?: boolean;
+  is_active?: boolean;
   /** References `categories.slug`. */
   category_slug?: string;
   gender_slug?: string;
@@ -84,6 +85,7 @@ export interface ProductUpdate {
   category_slug?: string;
   stock_quantity?: number;
   is_featured?: boolean;
+  is_active?: boolean;
   images?: string[];
 }
 

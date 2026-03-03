@@ -2,56 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ProductCreate } from "@/lib/types/product";
 import { UpstashService } from "@/lib/upstash";
-
-type RawProduct = {
-  slug: string;
-  name: string;
-  description?: string | null;
-  price: number;
-  care_instructions?: string | null;
-  stock_quantity?: number | null;
-  is_featured?: boolean;
-  category_slug?: string | null;
-  gender_slug?: string | null;
-  size_slugs?: string[];
-  color_slugs?: string[];
-  created_at: string;
-  updated_at?: string;
-  categories?: { name: string; slug: string } | null;
-  product_images?: { url: string; is_primary: boolean; display_order: number | null }[];
-  product_variants?: {
-    slug: string;
-    product_slug: string;
-    size_slug: string;
-    color_slug: string;
-    price: number;
-    stock_quantity: number;
-  }[];
-};
-
-function normaliseProduct(p: RawProduct) {
-  const images = (p.product_images ?? [])
-    .sort((a, b) => {
-      if (a.is_primary && !b.is_primary) return -1;
-      if (!a.is_primary && b.is_primary) return 1;
-      return (a.display_order ?? 0) - (b.display_order ?? 0);
-    })
-    .map((img) => img.url)
-    .filter(Boolean);
-
-  const variants = (p.product_variants ?? []).sort((a, b) =>
-    a.size_slug.localeCompare(b.size_slug)
-  );
-
-  return {
-    ...p,
-    id: p.slug,
-    images,
-    variants,
-    product_images: undefined,
-    product_variants: undefined,
-  };
-}
+import { RawProduct, normaliseProduct } from "@/lib/api/products";
 
 export async function GET(request: NextRequest) {
   try {
@@ -157,10 +108,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const slug = body.name
+    const baseSlug = body.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
+
+    // Ensure the slug is unique by appending an incrementing suffix if needed
+    let slug = baseSlug;
+    let suffix = 1;
+    while (true) {
+      const { data: existing } = await supabase
+        .from("products")
+        .select("slug")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (!existing) break;
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+    }
 
     const productData = {
       name: body.name,
@@ -169,6 +134,7 @@ export async function POST(request: NextRequest) {
       slug,
       stock_quantity: body.stock_quantity ?? 0,
       is_featured: body.is_featured ?? false,
+      is_active: body.is_active ?? true,
       category_slug: body.category_slug || null,
     };
 
@@ -218,6 +184,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Re-fetch so the response includes any images just inserted above
+    const { data: freshData, error: refetchError } = await supabase
+      .from("products")
+      .select(
+        `
+        *,
+        categories!products_category_slug_fkey(name, slug),
+        product_images(url, is_primary, display_order),
+        product_variants(slug, product_slug, size_slug, color_slug, price, stock_quantity)
+      `
+      )
+      .eq("slug", slug)
+      .single();
+
+    if (refetchError || !freshData) {
+      console.error("Failed to re-fetch product after creation:", refetchError?.message);
+      // Fall back to the original data snapshot (images may be missing)
+      return NextResponse.json(normaliseProduct(data as RawProduct), { status: 201 });
+    }
+
     try {
       await Promise.all([
         UpstashService.deletePattern("products:*"),
@@ -228,7 +214,7 @@ export async function POST(request: NextRequest) {
       console.error("Error clearing cache:", cacheError);
     }
 
-    return NextResponse.json(normaliseProduct(data as RawProduct), { status: 201 });
+    return NextResponse.json(normaliseProduct(freshData as RawProduct), { status: 201 });
   } catch {
     return NextResponse.json(
       { error: "Internal server error" },

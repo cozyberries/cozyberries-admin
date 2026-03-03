@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, ImageIcon, Save, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,8 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Product, ProductVariant, Category } from "@/lib/types/product";
-import { uploadImageToCloudinary } from "@/lib/cloudinary";
-import Image from "next/image";
 import { toast } from "sonner";
 
 interface ProductFormProps {
@@ -38,12 +36,12 @@ export default function ProductForm({
     price: "",
     stock_quantity: "",
     is_featured: false,
+    is_active: true,
     category_slug: "",
     images: [] as string[],
   });
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
-  const [imageFiles, setImageFiles] = useState<(File | string)[]>([]);
   const [variantRows, setVariantRows] = useState<VariantRow[]>([]);
 
   useEffect(() => {
@@ -55,10 +53,10 @@ export default function ProductForm({
         price: product.price?.toString() || "",
         stock_quantity: product.stock_quantity?.toString() || "0",
         is_featured: product.is_featured || false,
+        is_active: product.is_active ?? true,
         category_slug: product.category_slug || "",
         images: product.images ?? [],
       });
-      setImageFiles(product.images ?? []);
       setVariantRows(
         (product.variants ?? []).map((v) => ({
           ...v,
@@ -83,36 +81,31 @@ export default function ProductForm({
     }
   };
 
-  const handleAddProductImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files ? Array.from(e.target.files) : [];
-    if (files.length > 0) {
-      setImageFiles((prev) => [...prev, ...files]);
-    }
-  };
+  const hasVariants = variantRows.length > 0;
+
+  /** Auto-calculated from variant stocks; 0 when no variants exist yet */
+  const computedTotalStock = hasVariants
+    ? variantRows.reduce((sum, r) => sum + (parseInt(r.draftStock, 10) || 0), 0)
+    : 0;
+
+  /** In edit mode with variants, the base price mirrors the first size option */
+  const computedBasePrice =
+    product && hasVariants ? variantRows[0]?.draftPrice ?? formData.price : formData.price;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const uploadedUrls: string[] = [];
-      for (const img of imageFiles) {
-        if (typeof img === "string") {
-          uploadedUrls.push(img);
-        } else {
-          const url = await uploadImageToCloudinary(img);
-          uploadedUrls.push(url);
-        }
-      }
-
       const submitData = {
         name: formData.name,
         description: formData.description,
-        price: parseFloat(formData.price),
-        stock_quantity: parseInt(formData.stock_quantity),
+        price: parseFloat(computedBasePrice),
+        stock_quantity: computedTotalStock,
         is_featured: formData.is_featured,
+        is_active: formData.is_active,
         category_slug: formData.category_slug,
-        images: uploadedUrls,
+        images: formData.images,
       };
 
       await onSubmit(submitData);
@@ -220,54 +213,6 @@ export default function ProductForm({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Images */}
-            <div>
-              <Label>Product Images</Label>
-              <div className="flex flex-col gap-3 mt-2">
-                <div className="flex flex-wrap gap-3">
-                  {imageFiles?.length > 0 ? (
-                    imageFiles.map((img, idx) => (
-                      <div key={idx} className="relative">
-                        <Image
-                          src={
-                            typeof img === "string"
-                              ? img
-                              : URL.createObjectURL(img)
-                          }
-                          alt={`Product ${idx}`}
-                          width={80}
-                          height={80}
-                          className="rounded-md border object-cover w-20 h-20"
-                        />
-                        <button
-                          type="button"
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full py-1 px-[7px] text-xs leading-none"
-                          onClick={() =>
-                            setImageFiles((prev) =>
-                              prev.filter((_, i) => i !== idx)
-                            )
-                          }
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="w-20 h-20 border rounded-md flex items-center justify-center text-gray-400">
-                      <ImageIcon className="w-6 h-6" />
-                    </div>
-                  )}
-                </div>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleAddProductImage}
-                  className="w-full sm:w-auto"
-                />
-              </div>
-            </div>
-
             {/* Name */}
             <div>
               <Label htmlFor="name">Product Name *</Label>
@@ -297,29 +242,44 @@ export default function ProductForm({
             {/* Price + Stock */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="price">Base Price (₹) *</Label>
+                <Label htmlFor="price">
+                  Base Price (₹) *
+                  {product && hasVariants && (
+                    <span className="ml-1 text-xs font-normal text-gray-400">
+                      (from first size option)
+                    </span>
+                  )}
+                </Label>
                 <Input
                   id="price"
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.price}
-                  onChange={(e) => handleInputChange("price", e.target.value)}
+                  value={computedBasePrice}
+                  onChange={
+                    product && hasVariants
+                      ? undefined
+                      : (e) => handleInputChange("price", e.target.value)
+                  }
+                  readOnly={!!(product && hasVariants)}
                   placeholder="0.00"
                   required
+                  className={product && hasVariants ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""}
                 />
               </div>
               <div>
-                <Label htmlFor="stock_quantity">Total Stock</Label>
+                <Label htmlFor="stock_quantity">
+                  Total Stock
+                  <span className="ml-1 text-xs font-normal text-gray-400">
+                    (auto-calculated)
+                  </span>
+                </Label>
                 <Input
                   id="stock_quantity"
                   type="number"
-                  min="0"
-                  value={formData.stock_quantity}
-                  onChange={(e) =>
-                    handleInputChange("stock_quantity", e.target.value)
-                  }
-                  placeholder="0"
+                  value={computedTotalStock}
+                  readOnly
+                  className="bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
               </div>
             </div>
@@ -344,16 +304,30 @@ export default function ProductForm({
               </select>
             </div>
 
-            {/* Featured toggle */}
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="is_featured"
-                checked={formData.is_featured}
-                onCheckedChange={(checked) =>
-                  handleInputChange("is_featured", checked)
-                }
-              />
-              <Label htmlFor="is_featured">Featured Product</Label>
+            {/* Toggles */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_active"
+                  checked={formData.is_active}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("is_active", checked)
+                  }
+                />
+                <Label htmlFor="is_active">
+                  {formData.is_active ? "Enabled" : "Disabled"}
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_featured"
+                  checked={formData.is_featured}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("is_featured", checked)
+                  }
+                />
+                <Label htmlFor="is_featured">Featured Product</Label>
+              </div>
             </div>
 
             {/* Form Actions */}

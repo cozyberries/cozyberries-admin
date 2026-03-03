@@ -39,8 +39,25 @@ export async function PATCH(
     }
 
     const updateData: Record<string, unknown> = {};
-    if (body.price !== undefined) updateData.price = body.price;
-    if (body.stock_quantity !== undefined) updateData.stock_quantity = body.stock_quantity;
+
+    if (body.price !== undefined) {
+      if (typeof body.price !== "number" || isNaN(body.price) || body.price < 0) {
+        return NextResponse.json({ error: "Invalid price" }, { status: 400 });
+      }
+      updateData.price = body.price;
+    }
+
+    if (body.stock_quantity !== undefined) {
+      if (
+        typeof body.stock_quantity !== "number" ||
+        isNaN(body.stock_quantity) ||
+        body.stock_quantity < 0 ||
+        !Number.isInteger(body.stock_quantity)
+      ) {
+        return NextResponse.json({ error: "Invalid stock_quantity" }, { status: 400 });
+      }
+      updateData.stock_quantity = body.stock_quantity;
+    }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

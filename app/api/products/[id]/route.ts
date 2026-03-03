@@ -2,56 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ProductUpdate } from "@/lib/types/product";
 import { UpstashService } from "@/lib/upstash";
-
-type RawProduct = {
-  slug: string;
-  name: string;
-  description?: string | null;
-  price: number;
-  care_instructions?: string | null;
-  stock_quantity?: number | null;
-  is_featured?: boolean;
-  category_slug?: string | null;
-  gender_slug?: string | null;
-  size_slugs?: string[];
-  color_slugs?: string[];
-  created_at: string;
-  updated_at?: string;
-  categories?: { name: string; slug: string } | null;
-  product_images?: { url: string; is_primary: boolean; display_order: number | null }[];
-  product_variants?: {
-    slug: string;
-    product_slug: string;
-    size_slug: string;
-    color_slug: string;
-    price: number;
-    stock_quantity: number;
-  }[];
-};
-
-function normaliseProduct(p: RawProduct) {
-  const images = (p.product_images ?? [])
-    .sort((a, b) => {
-      if (a.is_primary && !b.is_primary) return -1;
-      if (!a.is_primary && b.is_primary) return 1;
-      return (a.display_order ?? 0) - (b.display_order ?? 0);
-    })
-    .map((img) => img.url)
-    .filter(Boolean);
-
-  const variants = (p.product_variants ?? []).sort((a, b) =>
-    a.size_slug.localeCompare(b.size_slug)
-  );
-
-  return {
-    ...p,
-    id: p.slug,
-    images,
-    variants,
-    product_images: undefined,
-    product_variants: undefined,
-  };
-}
+import { RawProduct, normaliseProduct } from "@/lib/api/products";
 
 export async function PUT(
   request: NextRequest,
@@ -75,6 +26,7 @@ export async function PUT(
     const body: ProductUpdate & {
       stock_quantity?: number;
       is_featured?: boolean;
+      is_active?: boolean;
       category_slug?: string;
       images?: string[];
     } = await request.json();
@@ -94,6 +46,7 @@ export async function PUT(
     if (body.price !== undefined) updateData.price = body.price;
     if (body.stock_quantity !== undefined) updateData.stock_quantity = body.stock_quantity;
     if (body.is_featured !== undefined) updateData.is_featured = body.is_featured;
+    if (body.is_active !== undefined) updateData.is_active = body.is_active;
     if (body.category_slug !== undefined) updateData.category_slug = body.category_slug;
 
     const { data, error } = await supabase
@@ -121,22 +74,55 @@ export async function PUT(
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    // Replace product_images if images array is provided
+    // Replace product_images if images array is provided.
+    // Safe pattern: snapshot existing rows → delete → insert new → restore on failure.
     if (body.images !== undefined) {
-      await supabase.from("product_images").delete().eq("product_slug", productSlug);
+      const finalSlug = (updateData.slug as string | undefined) ?? productSlug;
+
+      const { data: existingImages } = await supabase
+        .from("product_images")
+        .select("url, is_primary, display_order")
+        .eq("product_slug", productSlug);
+
+      const { error: delError } = await supabase
+        .from("product_images")
+        .delete()
+        .eq("product_slug", productSlug);
+
+      if (delError) {
+        console.error("Failed to delete old product images:", delError.message);
+        return NextResponse.json(
+          { error: `Failed to update product images: ${delError.message}` },
+          { status: 500 }
+        );
+      }
 
       if (body.images.length > 0) {
         const imageRows = body.images.map((url, idx) => ({
-          product_slug: (updateData.slug as string | undefined) ?? productSlug,
+          product_slug: finalSlug,
           url,
           is_primary: idx === 0,
           display_order: idx,
         }));
+
         const { error: imgError } = await supabase
           .from("product_images")
           .insert(imageRows);
+
         if (imgError) {
-          console.error("Failed to update product images:", imgError.message);
+          console.error("Failed to insert new product images:", imgError.message);
+          // Restore previous images so the product is not left without images
+          if (existingImages && existingImages.length > 0) {
+            const restoreRows = existingImages.map((img) => ({
+              ...img,
+              product_slug: productSlug,
+            }));
+            await supabase.from("product_images").insert(restoreRows);
+          }
+          return NextResponse.json(
+            { error: `Failed to update product images: ${imgError.message}` },
+            { status: 500 }
+          );
         }
       }
     }

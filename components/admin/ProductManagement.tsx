@@ -8,6 +8,8 @@ import {
   Trash2,
   MoreHorizontal,
   Package,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +27,7 @@ import Image from "next/image";
 import { sendNotification } from "@/lib/utils/notify";
 import { toast } from "sonner";
 
-type FilterStatus = "all" | "featured" | "in-stock";
+type FilterStatus = "all" | "featured" | "in-stock" | "out-of-stock" | "disabled";
 
 function StockBadge({ quantity }: { quantity: number | null | undefined }) {
   if (quantity === null || quantity === undefined) {
@@ -58,17 +60,17 @@ function StockBadge({ quantity }: { quantity: number | null | undefined }) {
 
 function VariantStockChip({ variant }: { variant: ProductVariant }) {
   const qty = variant.stock_quantity;
-  let colorClass = "bg-green-100 text-green-800 border-green-200";
-  if (qty === 0) colorClass = "bg-red-100 text-red-800 border-red-200";
-  else if (qty <= 5) colorClass = "bg-amber-100 text-amber-800 border-amber-200";
+
+  let stockClass = "bg-green-100 text-green-800";
+  if (qty === 0) stockClass = "bg-red-100 text-red-700";
+  else if (qty <= 5) stockClass = "bg-amber-100 text-amber-800";
 
   return (
-    <span
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px] font-medium ${colorClass}`}
-    >
-      {variant.size_slug}
-      <span className="opacity-60">·</span>
-      {qty}
+    <span className="inline-flex items-stretch rounded overflow-hidden border border-gray-200 text-[11px] font-medium">
+      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 capitalize">
+        {variant.size_slug}
+      </span>
+      <span className={`px-1.5 py-0.5 ${stockClass}`}>{qty}</span>
     </span>
   );
 }
@@ -164,6 +166,35 @@ export default function ProductManagement() {
     }
   };
 
+  const handleToggleActive = async (product: Product) => {
+    const nextActive = !(product.is_active ?? true);
+    // Optimistic update
+    setProducts((prev) =>
+      prev.map((p) => (p.id === product.id ? { ...p, is_active: nextActive } : p))
+    );
+    try {
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: nextActive }),
+      });
+      if (!res.ok) {
+        // Revert on failure
+        setProducts((prev) =>
+          prev.map((p) => (p.id === product.id ? { ...p, is_active: !nextActive } : p))
+        );
+        toast.error("Failed to update product status");
+      } else {
+        toast.success(nextActive ? "Product enabled" : "Product disabled");
+      }
+    } catch {
+      setProducts((prev) =>
+        prev.map((p) => (p.id === product.id ? { ...p, is_active: !nextActive } : p))
+      );
+      toast.error("Network error updating product status");
+    }
+  };
+
   const handleFormSubmit = async (productData: Product | Record<string, unknown>) => {
     try {
       const url = editingProduct
@@ -218,12 +249,18 @@ export default function ProductManagement() {
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.description?.toLowerCase().includes(searchTerm.toLowerCase());
 
+    const totalStock = product.variants && product.variants.length > 0
+      ? product.variants.reduce((sum, v) => sum + (v.stock_quantity ?? 0), 0)
+      : (product.stock_quantity ?? 0);
+
+    const isActive = product.is_active ?? true;
+
     const matchesFilter =
       filterStatus === "all" ||
       (filterStatus === "featured" && product.is_featured) ||
-      (filterStatus === "in-stock" &&
-        product.stock_quantity != null &&
-        product.stock_quantity > 0);
+      (filterStatus === "in-stock" && totalStock > 0) ||
+      (filterStatus === "out-of-stock" && totalStock === 0) ||
+      (filterStatus === "disabled" && !isActive);
 
     return matchesSearch && matchesFilter;
   });
@@ -299,6 +336,22 @@ export default function ProductManagement() {
               >
                 In Stock
               </Button>
+              <Button
+                variant={filterStatus === "out-of-stock" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterStatus("out-of-stock")}
+                className={`flex-1 sm:flex-none ${filterStatus === "out-of-stock" ? "bg-red-600 hover:bg-red-700 border-red-600" : "text-red-600 border-red-200 hover:bg-red-50"}`}
+              >
+                Out of Stock
+              </Button>
+              <Button
+                variant={filterStatus === "disabled" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterStatus("disabled")}
+                className={`flex-1 sm:flex-none ${filterStatus === "disabled" ? "bg-gray-600 hover:bg-gray-700 border-gray-600" : "text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              >
+                Disabled
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -325,11 +378,16 @@ export default function ProductManagement() {
           data-testid="product-list"
         >
           {filteredProducts.map((product, index) => {
-            const primaryImage = product.images?.find(Boolean);
+            const primaryImage = product.images?.[0];
             const hasVariants = product.variants && product.variants.length > 0;
 
+            const isActive = product.is_active ?? true;
+
             return (
-              <Card key={product.id ?? index} className="overflow-hidden">
+              <Card
+                key={product.id ?? index}
+                className={`overflow-hidden transition-opacity ${isActive ? "" : "opacity-60"}`}
+              >
                 {/* Image */}
                 <div className="aspect-square bg-gray-100 relative">
                   {primaryImage ? (
@@ -346,11 +404,16 @@ export default function ProductManagement() {
                       <span className="text-xs">No Image</span>
                     </div>
                   )}
-                  {product.is_featured && (
-                    <Badge className="absolute top-2 left-2 bg-blue-500">
-                      Featured
-                    </Badge>
-                  )}
+                  <div className="absolute top-2 left-2 flex gap-1.5">
+                    {product.is_featured && (
+                      <Badge className="bg-blue-500">Featured</Badge>
+                    )}
+                    {!isActive && (
+                      <Badge variant="secondary" className="bg-gray-700 text-white">
+                        Disabled
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 {/* Card Body */}
@@ -370,6 +433,19 @@ export default function ProductManagement() {
                         <DropdownMenuItem onClick={() => handleEditProduct(product)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleToggleActive(product)}>
+                          {isActive ? (
+                            <>
+                              <ToggleLeft className="h-4 w-4 mr-2 text-gray-500" />
+                              Disable
+                            </>
+                          ) : (
+                            <>
+                              <ToggleRight className="h-4 w-4 mr-2 text-green-600" />
+                              Enable
+                            </>
+                          )}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleDeleteProduct(product.id)}
