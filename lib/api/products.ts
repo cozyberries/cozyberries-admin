@@ -78,7 +78,11 @@ export function normaliseProduct(p: RawProduct) {
     const rankA = SIZE_ORDER[a.size_slug.toLowerCase()] ?? Infinity;
     const rankB = SIZE_ORDER[b.size_slug.toLowerCase()] ?? Infinity;
     if (rankA !== rankB) return rankA - rankB;
-    return a.size_slug.localeCompare(b.size_slug);
+    const bySize = a.size_slug.localeCompare(b.size_slug);
+    if (bySize !== 0) return bySize;
+    const colorA = (a.color_slug ?? "").toLowerCase();
+    const colorB = (b.color_slug ?? "").toLowerCase();
+    return colorA.localeCompare(colorB);
   });
 
   return {
