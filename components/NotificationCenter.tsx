@@ -193,6 +193,8 @@ export default function NotificationCenter() {
         </div>
     ) : null;
 
+    const hasUnread = notifications.some((n) => !n.is_read);
+
     return (
         <div className="relative">
             <button
@@ -204,10 +206,11 @@ export default function NotificationCenter() {
             >
                 <Lottie
                     animationData={animationData}
-                    loop={true}
+                    loop={hasUnread}
+                    autoplay={hasUnread}
                     style={{ width: 30, height: 30 }}
                 />
-                {notifications.some((n) => !n.is_read) && (
+                {hasUnread && (
                     <span className="absolute top-[6px] right-1 h-2 w-2 bg-red-500 rounded-full" />
                 )}
             </button>

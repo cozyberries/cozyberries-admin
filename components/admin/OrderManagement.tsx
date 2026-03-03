@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   Package,
@@ -488,7 +489,8 @@ export default function OrderManagement() {
   const [orders, setOrders] = useState<OrderWithPayments[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("search") ?? "");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [showForm, setShowForm] = useState(false);
   const [shipOrder, setShipOrder] = useState<OrderWithPayments | null>(null);
@@ -500,6 +502,8 @@ export default function OrderManagement() {
   const [datePreset, setDatePreset] = useState<DatePreset>("7d");
   const [fromDate, setFromDate] = useState<string>(daysAgoStr(7));
   const [toDate, setToDate] = useState<string>(todayStr());
+  const [userFilter, setUserFilter] = useState<string>("");
+  const [users, setUsers] = useState<{ id: string; email?: string; full_name?: string }[]>([]);
 
   const { get, put, delete: del } = useAuthenticatedFetch();
 
@@ -526,6 +530,15 @@ export default function OrderManagement() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // Fetch users once when the filter panel opens
+  useEffect(() => {
+    if (!showFilters || users.length > 0) return;
+    get("/api/users", { requireAdmin: true })
+      .then((res) => res.json())
+      .then((data) => setUsers(data.users || []))
+      .catch(() => {/* silently ignore */});
+  }, [showFilters, users.length, get]);
 
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
     try {
@@ -602,6 +615,7 @@ export default function OrderManagement() {
 
 
   const filteredOrders = orders.filter((order) => {
+    if (userFilter && order.customer_email?.toLowerCase() !== userFilter.toLowerCase()) return false;
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -747,6 +761,25 @@ export default function OrderManagement() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Customer */}
+            <div>
+              <Label className="text-xs text-gray-500">Customer</Label>
+              <Select value={userFilter || "all"} onValueChange={(v) => setUserFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="mt-1 h-9 text-sm">
+                  <SelectValue placeholder="All Customers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Customers</SelectItem>
+                  {users.filter((u) => !!u.email).map((u) => (
+                    <SelectItem key={u.id} value={u.email!}>
+                      <span className="truncate">
+                        {u.full_name ? `${u.full_name} – ${u.email}` : u.email}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <button
               onClick={() => {
                 setDatePreset("7d");
@@ -754,6 +787,7 @@ export default function OrderManagement() {
                 setFromDate(from);
                 setToDate(to);
                 setStatusFilter("all");
+                setUserFilter("");
                 setSearchTerm("");
               }}
               className="text-xs text-gray-400 hover:text-gray-600 underline"

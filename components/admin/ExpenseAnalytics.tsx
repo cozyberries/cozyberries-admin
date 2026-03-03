@@ -114,16 +114,15 @@ export default function ExpenseAnalytics() {
   const _topCategory = getTopCategory();
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Expense Analytics</h2>
-          <p className="text-gray-600">
-            Overview of company expense trends and statistics
-          </p>
+          <h2 className="text-lg font-bold text-gray-900">Expense Analytics</h2>
+          <p className="text-xs text-gray-500">Overview of expense trends and statistics</p>
         </div>
         <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs">
             <SelectValue placeholder="Select period" />
           </SelectTrigger>
           <SelectContent>
@@ -134,191 +133,128 @@ export default function ExpenseAnalytics() {
         </Select>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Summary Cards — 2x2 on mobile, 4-col on lg */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Expenses
-            </CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+            <CardTitle className="text-xs font-medium text-gray-600">Total</CardTitle>
+            <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.total_expenses}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(summary.total_amount)} total value
+          <CardContent className="p-3 pt-0">
+            <div className="text-xl font-bold">{summary.total_expenses}</div>
+            <p className="text-xs text-muted-foreground truncate">
+              {formatCurrency(summary.total_amount)}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Pending Amount
-            </CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+            <CardTitle className="text-xs font-medium text-gray-600">Pending</CardTitle>
+            <Clock className="h-3.5 w-3.5 text-yellow-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-3 pt-0">
+            <div className="text-xl font-bold truncate">
               {formatCurrency(summary.pending_amount)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {summary.pending_expenses} pending expenses
+              {summary.pending_expenses} items
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Approved Amount
-            </CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+            <CardTitle className="text-xs font-medium text-gray-600">Approved</CardTitle>
+            <CheckCircle className="h-3.5 w-3.5 text-green-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-3 pt-0">
+            <div className="text-xl font-bold truncate">
               {formatCurrency(summary.approved_amount)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {summary.approved_expenses} approved expenses
+              {summary.approved_expenses} items
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Monthly Growth
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+            <CardTitle className="text-xs font-medium text-gray-600">Growth</CardTitle>
             {growthRate >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-green-500" />
+              <TrendingUp className="h-3.5 w-3.5 text-green-500" />
             ) : (
-              <TrendingDown className="h-4 w-4 text-red-500" />
+              <TrendingDown className="h-3.5 w-3.5 text-red-500" />
             )}
           </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${
-                growthRate >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {growthRate >= 0 ? "+" : ""}
-              {growthRate.toFixed(1)}%
+          <CardContent className="p-3 pt-0">
+            <div className={`text-xl font-bold ${growthRate >= 0 ? "text-green-600" : "text-red-600"}`}>
+              {growthRate >= 0 ? "+" : ""}{growthRate.toFixed(1)}%
             </div>
-            <p className="text-xs text-muted-foreground">vs previous month</p>
+            <p className="text-xs text-muted-foreground">vs last month</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Status Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Status Breakdown + Top Categories */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <AlertTriangle className="mr-2 h-5 w-5" />
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="flex items-center text-sm">
+              <AlertTriangle className="mr-2 h-4 w-4" />
               Status Breakdown
             </CardTitle>
-            <CardDescription>
-              Distribution of expenses by status
-            </CardDescription>
+            <CardDescription className="text-xs">Distribution by status</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Clock className="mr-2 h-4 w-4 text-yellow-500" />
-                <span>Pending</span>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold">{summary.pending_expenses}</div>
-                <div className="text-sm text-gray-500">
-                  {formatCurrency(summary.pending_amount)}
+          <CardContent className="p-4 pt-0 space-y-3">
+            {[
+              { icon: Clock, color: "text-yellow-500", label: "Pending", count: summary.pending_expenses, amount: summary.pending_amount },
+              { icon: CheckCircle, color: "text-green-500", label: "Approved", count: summary.approved_expenses, amount: summary.approved_amount },
+              { icon: DollarSign, color: "text-blue-500", label: "Paid", count: summary.paid_expenses, amount: summary.paid_amount },
+              { icon: XCircle, color: "text-red-500", label: "Rejected", count: summary.rejected_expenses, amount: summary.rejected_amount },
+            ].map(({ icon: Icon, color, label, count, amount }) => (
+              <div key={label} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Icon className={`h-4 w-4 ${color}`} />
+                  <span className="text-sm">{label}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-semibold">{count}</div>
+                  <div className="text-xs text-gray-500">{formatCurrency(amount)}</div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                <span>Approved</span>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold">{summary.approved_expenses}</div>
-                <div className="text-sm text-gray-500">
-                  {formatCurrency(summary.approved_amount)}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <DollarSign className="mr-2 h-4 w-4 text-blue-500" />
-                <span>Paid</span>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold">{summary.paid_expenses}</div>
-                <div className="text-sm text-gray-500">
-                  {formatCurrency(summary.paid_amount)}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                <span>Rejected</span>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold">{summary.rejected_expenses}</div>
-                <div className="text-sm text-gray-500">
-                  {formatCurrency(summary.rejected_amount)}
-                </div>
-              </div>
-            </div>
+            ))}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <BarChart3 className="mr-2 h-5 w-5" />
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="flex items-center text-sm">
+              <BarChart3 className="mr-2 h-4 w-4" />
               Top Categories
             </CardTitle>
-            <CardDescription>Expenses by category</CardDescription>
+            <CardDescription className="text-xs">Expenses by category</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 pt-0 space-y-3">
             {summary.category_breakdown
               .sort((a, b) => b.total_amount - a.total_amount)
               .slice(0, 5)
               .map((category, index) => (
-                <div
-                  key={category.category}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center">
-                    <div
-                      className={`w-3 h-3 rounded-full mr-3 ${
-                        index === 0
-                          ? "bg-blue-500"
-                          : index === 1
-                          ? "bg-green-500"
-                          : index === 2
-                          ? "bg-yellow-500"
-                          : index === 3
-                          ? "bg-purple-500"
-                          : "bg-gray-500"
-                      }`}
-                    />
-                    <span className="capitalize">
-                      {category.category.replace("_", " ")}
+                <div key={category.category} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      index === 0 ? "bg-blue-500" :
+                      index === 1 ? "bg-green-500" :
+                      index === 2 ? "bg-yellow-500" :
+                      index === 3 ? "bg-purple-500" : "bg-gray-400"
+                    }`} />
+                    <span className="text-sm capitalize truncate">
+                      {category.category.replace(/_/g, " ")}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">
-                      {formatCurrency(category.total_amount)}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {category.count} expenses
-                    </div>
+                  <div className="text-right shrink-0 ml-2">
+                    <div className="text-sm font-semibold">{formatCurrency(category.total_amount)}</div>
+                    <div className="text-xs text-gray-500">{category.count} items</div>
                   </div>
                 </div>
               ))}
@@ -328,68 +264,44 @@ export default function ExpenseAnalytics() {
 
       {/* Monthly Trends */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Calendar className="mr-2 h-5 w-5" />
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="flex items-center text-sm">
+            <Calendar className="mr-2 h-4 w-4" />
             Monthly Trends
           </CardTitle>
-          <CardDescription>
-            Expense trends over the last 6 months
-          </CardDescription>
+          <CardDescription className="text-xs">Spending over time</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-4 pt-0">
+          <div className="space-y-2">
             {summary.monthly_trends.map((month, index) => {
-              const isCurrentMonth =
-                index === summary.monthly_trends.length - 1;
-              const previousMonth =
-                index > 0 ? summary.monthly_trends[index - 1] : null;
+              const isCurrentMonth = index === summary.monthly_trends.length - 1;
+              const previousMonth = index > 0 ? summary.monthly_trends[index - 1] : null;
               const monthGrowth =
                 previousMonth && previousMonth.total_amount > 0
-                  ? ((month.total_amount - previousMonth.total_amount) /
-                      previousMonth.total_amount) *
-                    100
+                  ? ((month.total_amount - previousMonth.total_amount) / previousMonth.total_amount) * 100
                   : 0;
 
               return (
                 <div
                   key={month.month}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
-                  <div>
-                    <div className="font-semibold">
-                      {new Date(month.month + "-01").toLocaleDateString(
-                        "en-US",
-                        {
-                          year: "numeric",
-                          month: "long",
-                        }
-                      )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-medium">
+                        {new Date(month.month + "-01").toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                      </span>
                       {isCurrentMonth && (
-                        <Badge className="ml-2" variant="secondary">
-                          Current
-                        </Badge>
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0">Current</Badge>
                       )}
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {month.count} expenses
-                    </div>
+                    <div className="text-xs text-gray-500">{month.count} expenses</div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-lg">
-                      {formatCurrency(month.total_amount)}
-                    </div>
+                  <div className="text-right shrink-0 ml-3">
+                    <div className="text-sm font-semibold">{formatCurrency(month.total_amount)}</div>
                     {previousMonth && (
-                      <div
-                        className={`text-sm flex items-center ${
-                          monthGrowth >= 0 ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {monthGrowth >= 0 ? (
-                          <TrendingUp className="mr-1 h-3 w-3" />
-                        ) : (
-                          <TrendingDown className="mr-1 h-3 w-3" />
-                        )}
+                      <div className={`text-xs flex items-center justify-end ${monthGrowth >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {monthGrowth >= 0 ? <TrendingUp className="mr-0.5 h-3 w-3" /> : <TrendingDown className="mr-0.5 h-3 w-3" />}
                         {Math.abs(monthGrowth).toFixed(1)}%
                       </div>
                     )}
