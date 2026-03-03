@@ -1,24 +1,24 @@
 import { Page } from '@playwright/test';
 
 /**
- * Login helper function to authenticate a user
+ * Login helper function to authenticate an admin user
  * @param page - Playwright page instance
- * @param email - User email (defaults to TEST_USER_EMAIL env var)
- * @param password - User password (defaults to TEST_USER_PASSWORD env var)
+ * @param identifier - Username or email (defaults to TEST_ADMIN_USERNAME env var)
+ * @param password - User password (defaults to TEST_ADMIN_PASSWORD env var)
  */
 export async function login(
   page: Page,
-  email?: string,
+  identifier?: string,
   password?: string
 ): Promise<void> {
-  const userEmail = email || process.env.TEST_USER_EMAIL!;
-  const userPassword = password || process.env.TEST_USER_PASSWORD!;
+  const userIdentifier = identifier || process.env.TEST_ADMIN_USERNAME!;
+  const userPassword = password || process.env.TEST_ADMIN_PASSWORD!;
 
   // Navigate to login page
   await page.goto('/login');
 
   // Fill in credentials
-  await page.getByLabel(/email address/i).fill(userEmail);
+  await page.getByLabel(/username or email/i).fill(userIdentifier);
   await page.getByLabel(/password/i).fill(userPassword);
 
   // Click sign in button
@@ -81,15 +81,15 @@ export async function navigateToLogin(page: Page): Promise<void> {
 /**
  * Fill login form without submitting
  * @param page - Playwright page instance
- * @param email - User email
+ * @param identifier - Username or email
  * @param password - User password
  */
 export async function fillLoginForm(
   page: Page,
-  email: string,
+  identifier: string,
   password: string
 ): Promise<void> {
-  await page.getByLabel(/email address/i).fill(email);
+  await page.getByLabel(/username or email/i).fill(identifier);
   await page.getByLabel(/password/i).fill(password);
 }
 

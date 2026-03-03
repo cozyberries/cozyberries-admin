@@ -2,20 +2,20 @@ import { test, expect } from '@playwright/test';
 import { login, logout, fillLoginForm, submitLoginForm, getLoginError } from './helpers/auth';
 
 test.describe('Authentication Flow (Using Helpers)', () => {
-  let testEmail: string;
+  let testIdentifier: string;
   let testPassword: string;
 
   test.beforeAll(() => {
-    const email = process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL;
+    const identifier = process.env.TEST_ADMIN_USERNAME || process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL;
     const password = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD;
-    
-    if (!email || !password) {
+
+    if (!identifier || !password) {
       throw new Error(
-        'Missing required env vars for auth tests. Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD (or TEST_USER_EMAIL and TEST_USER_PASSWORD).'
+        'Missing required env vars for auth tests. Set TEST_ADMIN_USERNAME and TEST_ADMIN_PASSWORD.'
       );
     }
-    
-    testEmail = email;
+
+    testIdentifier = identifier;
     testPassword = password;
   });
 
@@ -30,14 +30,14 @@ test.describe('Authentication Flow (Using Helpers)', () => {
     await logout(page);
 
     // Verify we're back on login page
-    await expect(page.getByRole('heading', { name: /sign in to your account/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /admin login/i })).toBeVisible();
   });
 
   test('should show error for invalid credentials using helpers', async ({ page }) => {
     await page.goto('/login');
 
     // Fill form with invalid credentials
-    await fillLoginForm(page, 'wrong@email.com', 'wrongpassword');
+    await fillLoginForm(page, 'wronguser', 'wrongpassword');
 
     // Submit form
     await submitLoginForm(page);
@@ -51,7 +51,7 @@ test.describe('Authentication Flow (Using Helpers)', () => {
     await page.goto('/login');
 
     // Fill form with valid credentials
-    await fillLoginForm(page, testEmail, testPassword);
+    await fillLoginForm(page, testIdentifier, testPassword);
 
     // Submit form
     await submitLoginForm(page);

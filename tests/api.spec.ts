@@ -108,26 +108,25 @@ test.describe('API Routes', () => {
     expect([200, 401, 403]).toContain(response.status());
   });
 
-  // ── Auth Token API ─────────────────────────────────────────────
+  // ── Admin Login API ──────────────────────────────────────────────
 
-  test('POST /api/auth/generate-token without auth should fail', async ({ request }) => {
-    const response = await request.post('/api/auth/generate-token');
-    expect([401, 403]).toContain(response.status());
-  });
-
-  test('POST /api/auth/generate-token with missing or invalid payload should return 400', async ({ request }) => {
-    const response = await request.post('/api/auth/generate-token', {
-      data: { userEmail: 'test@test.com' },
+  test('POST /api/auth/admin-login without credentials should return 400', async ({ request }) => {
+    const response = await request.post('/api/auth/admin-login', {
+      data: {},
     });
     expect(response.status()).toBe(400);
   });
 
-  test('POST /api/auth/generate-token with malformed JSON should return 400', async ({ request }) => {
-    const response = await request.post('/api/auth/generate-token', {
-      data: 'not valid json',
-      headers: { 'Content-Type': 'application/json' },
+  test('POST /api/auth/admin-login with wrong credentials should return 401', async ({ request }) => {
+    const response = await request.post('/api/auth/admin-login', {
+      data: { identifier: 'wronguser', password: 'wrongpassword' },
     });
-    expect(response.status()).toBe(400);
+    expect(response.status()).toBe(401);
+  });
+
+  test('GET /api/auth/admin-session without cookie should return 401', async ({ request }) => {
+    const response = await request.get('/api/auth/admin-session');
+    expect(response.status()).toBe(401);
   });
 
   // ── Setup API ──────────────────────────────────────────────────
@@ -135,8 +134,8 @@ test.describe('API Routes', () => {
   test('POST /api/setup without setup key should fail', async ({ request }) => {
     const response = await request.post('/api/setup', {
       data: {
-        email: 'test@test.com',
-        password: 'test123',
+        username: 'testadmin',
+        password: 'test12345678',
       },
     });
     expect([401, 403]).toContain(response.status());

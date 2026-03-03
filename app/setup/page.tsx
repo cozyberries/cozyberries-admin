@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Shield, CheckCircle } from "lucide-react";
 
 export default function AdminSetupPage() {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -68,8 +69,9 @@ export default function AdminSetupPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
+          username,
           password,
+          email: email || undefined,
           setupKey,
         }),
       });
@@ -78,9 +80,7 @@ export default function AdminSetupPage() {
 
       if (response.ok) {
         setSuccess(true);
-        // Store the admin token temporarily
-        localStorage.setItem("admin_token", data.token);
-
+        // Session cookie is set server-side automatically
         setTimeout(() => {
           router.push("/");
         }, 2000);
@@ -167,8 +167,22 @@ export default function AdminSetupPage() {
             </div>
 
             <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                Username
+              </label>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="admin"
+                required
+              />
+            </div>
+
+            <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Admin Email
+                Email (optional)
               </label>
               <Input
                 id="email"
@@ -176,7 +190,6 @@ export default function AdminSetupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@example.com"
-                required
               />
             </div>
 

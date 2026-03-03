@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SupabaseAuthProvider } from "@/components/supabase-auth-provider";
+import { AdminAuthProvider } from "@/components/supabase-auth-provider";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -21,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <SupabaseAuthProvider>
+        <AdminAuthProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="light"
@@ -31,7 +31,7 @@ export default function RootLayout({
             {children}
             <Toaster />
           </ThemeProvider>
-        </SupabaseAuthProvider>
+        </AdminAuthProvider>
       </body>
     </html>
   );
