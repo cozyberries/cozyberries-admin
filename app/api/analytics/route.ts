@@ -5,6 +5,10 @@ import { authenticateRequest } from "@/lib/jwt-auth";
 // Revenue-counted statuses: money has been collected
 const REVENUE_STATUSES = ["payment_confirmed", "processing", "shipped", "delivered"];
 
+interface OrderRevenueAgg {
+  sum: string | number | null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request);
@@ -39,8 +43,7 @@ export async function GET(request: NextRequest) {
       .from("orders")
       .select("total_amount.sum()")
       .in("status", REVENUE_STATUSES);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const totalRevenue = Number((revenueAgg as any)?.[0]?.sum ?? 0);
+    const totalRevenue = Number((revenueAgg as OrderRevenueAgg[])?.[0]?.sum ?? 0);
 
     const { count: pendingOrders } = await supabase
       .from("orders")
@@ -74,6 +77,13 @@ export async function GET(request: NextRequest) {
         if (pageError || !pageData?.users?.length) break;
         allUsers.push(...pageData.users);
         if (pageData.users.length < 1000) break;
+        if (page === MAX_PAGES) {
+          console.warn(
+            `[analytics] listUsers pagination truncated at MAX_PAGES=${MAX_PAGES} (perPage=1000); ` +
+              `collected ${allUsers.length} users through page ${page}; actual total may be higher.`
+          );
+          break;
+        }
         page++;
       }
     }
