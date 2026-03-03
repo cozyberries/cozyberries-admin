@@ -14,12 +14,11 @@ export const getPrimaryImageUrl = (
   // Find primary image first
   const primaryImage = images.find((img) => img.is_primary);
   if (primaryImage) {
-    return primaryImage.url || `/${primaryImage.storage_path}`;
+    return primaryImage.url;
   }
 
   // Fall back to first image if no primary
-  const firstImage = images[0];
-  return firstImage.url || `/${firstImage.storage_path}`;
+  return images[0].url;
 };
 
 // Get all image URLs from product images array
@@ -28,7 +27,7 @@ export const getAllImageUrls = (images?: ProductImage[]): string[] => {
     return []; // Return empty array instead of placeholder when no images
   }
 
-  return images.map((img) => img.url || `/${img.storage_path}`);
+  return images.map((img) => img.url).filter(Boolean) as string[];
 };
 
 // Get the primary image URL from category images array
