@@ -80,7 +80,8 @@ async function fetchExpenses(supabase: ReturnType<typeof createAdminSupabaseClie
 
   const { data, error } = await supabase
     .from("expenses")
-    .select(selectStr);
+    .select(selectStr)
+    .returns<ExpenseRow[]>();
 
   if (error) throw new Error(`Failed to fetch expenses: ${error.message}`);
   return data || [];
