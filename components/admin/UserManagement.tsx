@@ -39,8 +39,8 @@ interface User {
 
 function UserAvatar({ user }: { user: User }) {
   const initials = user.full_name
-    ? user.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
-    : (user.email?.charAt(0) ?? "?").toUpperCase();
+    ? user.full_name.trim().split(/\s+/).filter(Boolean).map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : (user.email?.trim().charAt(0) ?? "?").toUpperCase();
   return (
     <div className="h-10 w-10 flex-shrink-0 bg-rose-100 rounded-full flex items-center justify-center">
       <span className="text-sm font-semibold text-rose-700">{initials}</span>

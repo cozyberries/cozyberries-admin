@@ -124,6 +124,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               size="icon"
               onClick={handleSignOut}
               disabled={isLoggingOut}
+              aria-label="Sign out"
             >
               <LogOut className="h-5 w-5 text-gray-500" />
             </Button>

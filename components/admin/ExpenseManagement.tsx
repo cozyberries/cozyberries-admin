@@ -101,6 +101,31 @@ function SlideModal({
   );
 }
 
+// ── Confirm Delete modal ──────────────────────────────────────────────────────
+function ConfirmModal({
+  open,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <h2 className="text-base font-semibold mb-2">Delete expense?</h2>
+        <p className="text-sm text-gray-600 mb-6">This cannot be undone.</p>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button onClick={onConfirm} className="flex-1 bg-red-600 hover:bg-red-700 text-white">Delete</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Detail view ───────────────────────────────────────────────────────────────
 function ExpenseDetail({
   expense,
@@ -205,6 +230,8 @@ export default function ExpenseManagement() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [selected, setSelected] = useState<Expense | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { fetch: authFetch } = useAuthenticatedFetch();
 
@@ -274,6 +301,13 @@ export default function ExpenseManagement() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete expense");
     }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    await handleDelete(pendingDeleteId);
+    setDeleteConfirmOpen(false);
+    setPendingDeleteId(null);
   };
 
   const handleFormSuccess = () => {
@@ -346,6 +380,14 @@ export default function ExpenseManagement() {
             setSelected(null);
           }}
           getCategoryLabel={getCategoryLabel}
+        />
+      )}
+
+      {deleteConfirmOpen && (
+        <ConfirmModal
+          open={deleteConfirmOpen}
+          onClose={() => { setDeleteConfirmOpen(false); setPendingDeleteId(null); }}
+          onConfirm={handleConfirmDelete}
         />
       )}
 
@@ -604,7 +646,7 @@ export default function ExpenseManagement() {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-red-600"
-                              onClick={() => handleDelete(expense.id)}
+                              onClick={() => { setPendingDeleteId(expense.id); setDeleteConfirmOpen(true); }}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />Delete
                             </DropdownMenuItem>

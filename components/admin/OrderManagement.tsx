@@ -770,8 +770,8 @@ export default function OrderManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Customers</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.email ?? u.id}>
+                  {users.filter((u) => !!u.email).map((u) => (
+                    <SelectItem key={u.id} value={u.email!}>
                       <span className="truncate">
                         {u.full_name ? `${u.full_name} – ${u.email}` : u.email}
                       </span>

@@ -1,4 +1,16 @@
 -- ============================================================
+-- DOWN / ROLLBACK — run this block to revert the migration:
+--
+--   DROP POLICY IF EXISTS "Authenticated users can read active expense_categories"
+--     ON expense_categories;
+--   DROP TRIGGER IF EXISTS update_expenses_updated_at ON expenses;
+--   DROP TRIGGER IF EXISTS update_expense_categories_updated_at ON expense_categories;
+--   DROP FUNCTION IF EXISTS update_updated_at_column();
+--   DROP TABLE IF EXISTS expenses;
+--   DROP TABLE IF EXISTS expense_categories;
+-- ============================================================
+
+-- ============================================================
 -- Expense Categories Table
 -- ============================================================
 CREATE TABLE IF NOT EXISTS expense_categories (
@@ -54,8 +66,23 @@ CREATE TABLE IF NOT EXISTS expenses (
   approved_at      TIMESTAMPTZ,
   rejected_reason  TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_approval_consistency CHECK (
+    (status = 'approved' AND approved_at IS NOT NULL AND approved_by IS NOT NULL)
+    OR (status = 'rejected' AND rejected_reason IS NOT NULL)
+    OR (status NOT IN ('approved', 'rejected'))
+  )
 );
+
+-- Add CHECK constraint to existing expenses table (handles re-runs on already-created tables)
+DO $$ BEGIN
+  ALTER TABLE expenses ADD CONSTRAINT chk_approval_consistency CHECK (
+    (status = 'approved' AND approved_at IS NOT NULL AND approved_by IS NOT NULL)
+    OR (status = 'rejected' AND rejected_reason IS NOT NULL)
+    OR (status NOT IN ('approved', 'rejected'))
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Auto-update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

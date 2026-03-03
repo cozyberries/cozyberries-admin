@@ -207,7 +207,7 @@ export default function NotificationCenter() {
                 <Lottie
                     animationData={animationData}
                     loop={hasUnread}
-                    isStopped={!hasUnread}
+                    autoplay={hasUnread}
                     style={{ width: 30, height: 30 }}
                 />
                 {hasUnread && (

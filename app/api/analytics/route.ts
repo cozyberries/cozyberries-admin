@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const auth = await authenticateRequest(request);
 
     if (!auth.isAuthenticated || !auth.isAdmin) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 401 });
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     const supabase = createAdminSupabaseClient();
@@ -23,44 +23,61 @@ export async function GET(request: NextRequest) {
     // Six months ago for chart data
     const sixMonthsAgo = new Date(currentYear, currentMonth - 5, 1).toISOString();
 
-    // Fetch all orders from the last 6 months in one query
+    // Fetch orders from the last 6 months for chart rendering
     const { data: recentOrders } = await supabase
       .from("orders")
       .select("id, total_amount, status, created_at")
       .gte("created_at", sixMonthsAgo)
       .order("created_at", { ascending: false });
 
-    // Fetch ALL orders for lifetime totals
-    const { data: allOrders } = await supabase
+    // ── Lifetime aggregates (no full table scan) ───────────────────────────────
+    const { count: totalOrders } = await supabase
       .from("orders")
-      .select("id, total_amount, status, created_at");
+      .select("*", { count: "exact", head: true });
+
+    const { data: revenueRows } = await supabase
+      .from("orders")
+      .select("total_amount")
+      .in("status", REVENUE_STATUSES);
+    const totalRevenue = revenueRows?.reduce((sum, o) => sum + (o.total_amount ?? 0), 0) ?? 0;
+
+    const { count: pendingOrders } = await supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "payment_pending");
+
+    // ── This month stats ──────────────────────────────────────────────────────
+    const { data: thisMonthRows } = await supabase
+      .from("orders")
+      .select("total_amount, status")
+      .gte("created_at", startOfMonth);
+    const monthlyOrders = thisMonthRows?.length ?? 0;
+    const monthlyRevenue =
+      thisMonthRows
+        ?.filter((o) => REVENUE_STATUSES.includes(o.status))
+        .reduce((sum, o) => sum + (o.total_amount ?? 0), 0) ?? 0;
 
     // Products count
     const { count: totalProducts } = await supabase
       .from("products")
       .select("*", { count: "exact", head: true });
 
-    // Users
-    const { data: authUsersData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-    const allUsers = authUsersData?.users ?? [];
+    // ── Users — paginated to handle > 1,000 users ─────────────────────────────
+    const firstPage = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const allUsers = [...(firstPage.data?.users ?? [])];
+    if ((firstPage.data?.users?.length ?? 0) >= 1000) {
+      let page = 2;
+      while (true) {
+        const { data: pageData, error: pageError } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+        if (pageError || !pageData?.users?.length) break;
+        allUsers.push(...pageData.users);
+        if (pageData.users.length < 1000) break;
+        page++;
+      }
+    }
 
-    // ── Lifetime stats ────────────────────────────────────────────────────────
-    const totalOrders = allOrders?.length ?? 0;
-    const totalRevenue =
-      allOrders
-        ?.filter((o) => REVENUE_STATUSES.includes(o.status))
-        .reduce((sum, o) => sum + (o.total_amount ?? 0), 0) ?? 0;
     const totalUsers = allUsers.length;
-
-    // ── This month stats ──────────────────────────────────────────────────────
-    const thisMonthOrders = allOrders?.filter((o) => o.created_at >= startOfMonth) ?? [];
-    const monthlyOrders = thisMonthOrders.length;
-    const monthlyRevenue = thisMonthOrders
-      .filter((o) => REVENUE_STATUSES.includes(o.status))
-      .reduce((sum, o) => sum + (o.total_amount ?? 0), 0);
-    const monthlyUsers = allUsers.filter(
-      (u) => u.created_at >= startOfMonth
-    ).length;
+    const monthlyUsers = allUsers.filter((u) => u.created_at >= startOfMonth).length;
 
     // ── Chart data: last 6 months ─────────────────────────────────────────────
     const chartData = [];
@@ -88,20 +105,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ── Pending counts (useful for dashboard alerts) ───────────────────────────
-    const pendingOrders =
-      allOrders?.filter((o) => o.status === "payment_pending").length ?? 0;
-
     return NextResponse.json({
       stats: {
-        totalOrders,
+        totalOrders: totalOrders ?? 0,
         totalRevenue,
         totalUsers,
         totalProducts: totalProducts ?? 0,
         monthlyRevenue,
         monthlyOrders,
         monthlyUsers,
-        pendingOrders,
+        pendingOrders: pendingOrders ?? 0,
       },
       chartData,
     });

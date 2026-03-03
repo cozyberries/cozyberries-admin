@@ -18,9 +18,11 @@ export default function AdminExpensesPage() {
     if (!loading) {
       if (!isAuthenticated) {
         router.push("/login?redirect=/expenses");
+      } else if (!isAdmin) {
+        router.push("/");
       }
     }
-  }, [loading, isAuthenticated, router]);
+  }, [loading, isAuthenticated, isAdmin, router]);
 
   if (loading) {
     return (
@@ -30,7 +32,13 @@ export default function AdminExpensesPage() {
     );
   }
 
-  if (!isAuthenticated || !isAdmin) return null;
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-sm text-gray-500">You don&apos;t have permission to view this page.</p>
+      </div>
+    );
+  }
 
   return (
     <AdminLayout>
