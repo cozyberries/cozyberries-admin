@@ -94,13 +94,20 @@ export default function ProductForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const parsedPrice = parseFloat(computedBasePrice);
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      toast.error("Please enter a valid base price.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const submitData = {
         name: formData.name,
         description: formData.description,
-        price: parseFloat(computedBasePrice),
+        price: parsedPrice,
         stock_quantity: computedTotalStock,
         is_featured: formData.is_featured,
         is_active: formData.is_active,

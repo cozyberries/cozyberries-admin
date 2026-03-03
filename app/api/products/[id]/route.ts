@@ -111,11 +111,13 @@ export async function PUT(
 
         if (imgError) {
           console.error("Failed to insert new product images:", imgError.message);
-          // Restore previous images so the product is not left without images
+          // Restore previous images so the product is not left without images.
+          // Use finalSlug (the current slug after potential rename) so restored rows
+          // reference the correct product — productSlug is the pre-update value.
           if (existingImages && existingImages.length > 0) {
             const restoreRows = existingImages.map((img) => ({
               ...img,
-              product_slug: productSlug,
+              product_slug: finalSlug,
             }));
             await supabase.from("product_images").insert(restoreRows);
           }

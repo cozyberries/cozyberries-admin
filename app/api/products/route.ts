@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
     const body: ProductCreate & {
       stock_quantity?: number;
       is_featured?: boolean;
+      is_active?: boolean;
       category_slug?: string;
       images?: string[];
     } = await request.json();
@@ -113,7 +114,9 @@ export async function POST(request: NextRequest) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-    // Ensure the slug is unique by appending an incrementing suffix if needed
+    // Ensure the slug is unique by appending an incrementing suffix if needed.
+    // Capped at 100 attempts to prevent an infinite loop.
+    const MAX_SLUG_ATTEMPTS = 100;
     let slug = baseSlug;
     let suffix = 1;
     while (true) {
@@ -123,6 +126,12 @@ export async function POST(request: NextRequest) {
         .eq("slug", slug)
         .maybeSingle();
       if (!existing) break;
+      if (suffix > MAX_SLUG_ATTEMPTS) {
+        return NextResponse.json(
+          { error: "Could not generate a unique product slug — too many products with the same name." },
+          { status: 500 }
+        );
+      }
       slug = `${baseSlug}-${suffix}`;
       suffix += 1;
     }
