@@ -88,6 +88,7 @@ export interface Order extends OrderBase {
   estimated_delivery_date?: string;
   actual_delivery_date?: string;
   tracking_number?: string;
+  carrier_name?: string;
   delivery_notes?: string;
   created_at: string;
   updated_at: string;
