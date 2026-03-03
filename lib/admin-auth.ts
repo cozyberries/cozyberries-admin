@@ -3,7 +3,13 @@ import bcrypt from 'bcryptjs';
 import { createAdminSupabaseClient } from './supabase-server';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return secret;
+}
 const COOKIE_NAME = 'admin_session';
 const BCRYPT_SALT_ROUNDS = 12;
 const TOKEN_EXPIRY = '24h';
@@ -49,7 +55,7 @@ export function generateAdminJWT(admin: AdminUser): string {
     role: admin.role,
     isAnonymous: false,
   };
-  return sign(payload, JWT_SECRET, {
+  return sign(payload, getJwtSecret(), {
     expiresIn: TOKEN_EXPIRY,
     issuer: 'cozyberries-admin',
     audience: 'cozyberries-admin-panel',
@@ -57,7 +63,10 @@ export function generateAdminJWT(admin: AdminUser): string {
 }
 
 export function verifyAdminJWT(token: string): AdminTokenPayload {
-  return verify(token, JWT_SECRET) as AdminTokenPayload;
+  return verify(token, getJwtSecret(), {
+    issuer: 'cozyberries-admin',
+    audience: 'cozyberries-admin-panel',
+  }) as unknown as AdminTokenPayload;
 }
 
 // ---- Cookie Management ----
@@ -120,7 +129,7 @@ export async function loginAdmin(identifier: string, password: string): Promise<
   }
 
   if (!admin.is_active) {
-    return { success: false, error: 'Account is deactivated' };
+    return { success: false, error: 'Invalid credentials' };
   }
 
   const isValid = await verifyPassword(password, admin.password_hash);

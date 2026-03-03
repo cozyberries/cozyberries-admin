@@ -45,6 +45,7 @@ ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
 -- Allow service_role full access
 DROP POLICY IF EXISTS "Service role full access" ON public.admin_users;
 CREATE POLICY "Service role full access" ON public.admin_users
+  TO service_role
   FOR ALL USING (true) WITH CHECK (true);
 
 -- Revoke all from anon and authenticated roles

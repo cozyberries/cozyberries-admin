@@ -43,8 +43,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success) {
+      console.error("Failed to create admin user:", result.error);
       return NextResponse.json(
-        { error: "Failed to create admin user: " + result.error },
+        { error: "Failed to create admin user" },
+        { status: 500 }
+      );
+    }
+
+    if (!result.admin) {
+      console.error("createAdmin returned success but no admin object");
+      return NextResponse.json(
+        { error: "Failed to create admin user" },
         { status: 500 }
       );
     }
@@ -52,11 +61,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: "Admin user created successfully",
       user: {
-        id: result.admin!.id,
-        username: result.admin!.username,
-        email: result.admin!.email,
-        role: result.admin!.role,
-        fullName: result.admin!.full_name,
+        id: result.admin.id,
+        username: result.admin.username,
+        email: result.admin.email,
+        role: result.admin.role,
+        fullName: result.admin.full_name,
       }
     });
 

@@ -94,13 +94,13 @@ export function AdminAuthProvider({
   const signOut = useCallback(async () => {
     try {
       await fetch("/api/auth/admin-logout", { method: "POST" });
-      setUser(null);
-      setJwtToken(null);
-      return { success: true };
     } catch (error) {
       console.error("Sign out error:", error);
-      return { success: false, error };
+    } finally {
+      setUser(null);
+      setJwtToken(null);
     }
+    return { success: true };
   }, []);
 
   // Computed values

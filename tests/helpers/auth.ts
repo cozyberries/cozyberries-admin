@@ -11,8 +11,14 @@ export async function login(
   identifier?: string,
   password?: string
 ): Promise<void> {
-  const userIdentifier = identifier || process.env.TEST_ADMIN_USERNAME!;
-  const userPassword = password || process.env.TEST_ADMIN_PASSWORD!;
+  const userIdentifier = identifier ?? process.env.TEST_ADMIN_USERNAME;
+  const userPassword = password ?? process.env.TEST_ADMIN_PASSWORD;
+
+  if (!userIdentifier || !userPassword) {
+    throw new Error(
+      'Login credentials not provided. Set TEST_ADMIN_USERNAME and TEST_ADMIN_PASSWORD environment variables or pass credentials explicitly.'
+    );
+  }
 
   // Navigate to login page
   await page.goto('/login');

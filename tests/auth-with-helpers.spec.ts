@@ -11,7 +11,7 @@ test.describe('Authentication Flow (Using Helpers)', () => {
 
     if (!identifier || !password) {
       throw new Error(
-        'Missing required env vars for auth tests. Set TEST_ADMIN_USERNAME and TEST_ADMIN_PASSWORD.'
+        'Missing required env vars for auth tests. Set TEST_ADMIN_USERNAME (or TEST_ADMIN_EMAIL/TEST_USER_EMAIL) and TEST_ADMIN_PASSWORD (or TEST_USER_PASSWORD).'
       );
     }
 

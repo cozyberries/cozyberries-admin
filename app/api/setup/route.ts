@@ -45,22 +45,30 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success) {
+      console.error("Failed to create admin user:", result.error);
       return NextResponse.json(
-        { error: "Failed to create admin user: " + result.error },
+        { error: "Failed to create admin user" },
+        { status: 500 }
+      );
+    }
+
+    if (!result.admin) {
+      return NextResponse.json(
+        { error: "Admin user creation returned no data" },
         { status: 500 }
       );
     }
 
     // Generate JWT and set session cookie
-    const token = generateAdminJWT(result.admin!);
+    const token = generateAdminJWT(result.admin);
     await setSessionCookie(token);
 
     return NextResponse.json({
       message: "Admin user created successfully",
       user: {
-        id: result.admin!.id,
-        username: result.admin!.username,
-        email: result.admin!.email,
+        id: result.admin.id,
+        username: result.admin.username,
+        email: result.admin.email,
         role: 'super_admin'
       },
       token

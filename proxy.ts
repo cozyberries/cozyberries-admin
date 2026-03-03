@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { verify } from "jsonwebtoken";
+import { verifyAdminJWT } from "./lib/admin-auth";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
 const COOKIE_NAME = 'admin_session';
 
 export async function proxy(request: NextRequest) {
@@ -20,11 +19,7 @@ export async function proxy(request: NextRequest) {
     }
 
     try {
-        const decoded = verify(token, JWT_SECRET) as {
-            id: string;
-            username: string;
-            role: string;
-        };
+        const decoded = verifyAdminJWT(token);
 
         const isAdmin = decoded.role === "admin" || decoded.role === "super_admin";
 
