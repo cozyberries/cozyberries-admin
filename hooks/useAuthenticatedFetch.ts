@@ -4,6 +4,8 @@ import { useCallback } from "react";
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
   requireAdmin?: boolean;
+  /** Suppress console.error for non-ok responses (use for non-critical fetches) */
+  silent?: boolean;
 }
 
 export function useAuthenticatedFetch() {
@@ -14,6 +16,7 @@ export function useAuthenticatedFetch() {
       const {
         requireAuth = false,
         requireAdmin = false,
+        silent = false,
         ...fetchOptions
       } = options;
 
@@ -64,16 +67,18 @@ export function useAuthenticatedFetch() {
           .json()
           .catch(() => ({ error: "Request failed" }));
         
-        // Log detailed error for debugging
-        console.error("API Request failed:", {
-          url,
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData.error,
-          hasAuth: !!jwtToken,
-          isAuthenticated,
-          isAdmin,
-        });
+        // Log detailed error for debugging (suppressed when silent: true)
+        if (!silent) {
+          console.error("API Request failed:", {
+            url,
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData.error,
+            hasAuth: !!jwtToken,
+            isAuthenticated,
+            isAdmin,
+          });
+        }
         
         throw new Error(
           errorData.error || `Request failed with status ${response.status}`
