@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   Package,
@@ -49,6 +49,20 @@ interface OrderWithPayments extends Order {
   payments?: Payment[];
 }
 
+// ── Shared helpers ────────────────────────────────────────────────────────────
+const fmt = (amount: number) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
+
+const statusColor: Record<OrderStatus, string> = {
+  payment_pending: "bg-yellow-100 text-yellow-800",
+  payment_confirmed: "bg-blue-100 text-blue-800",
+  processing: "bg-purple-100 text-purple-800",
+  shipped: "bg-indigo-100 text-indigo-800",
+  delivered: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
+  refunded: "bg-gray-100 text-gray-800",
+};
+
 // ── Ship Order Dialog ────────────────────────────────────────────────────────
 function ShipOrderDialog({
   order,
@@ -65,10 +79,12 @@ function ShipOrderDialog({
     order.estimated_delivery_date ? order.estimated_delivery_date.split("T")[0] : ""
   );
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setSubmitError(null);
     try {
       await onShipped(order.id, {
         status: "shipped",
@@ -79,6 +95,8 @@ function ShipOrderDialog({
           : "",
       });
       onClose();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to ship order");
     } finally {
       setSaving(false);
     }
@@ -106,6 +124,7 @@ function ShipOrderDialog({
             <Label htmlFor="eta">Estimated Delivery Date</Label>
             <Input id="eta" type="date" value={estimatedDelivery} onChange={(e) => setEstimatedDelivery(e.target.value)} className="mt-1" />
           </div>
+          {submitError && <p className="text-red-500 text-sm">{submitError}</p>}
           <div className="flex gap-2 pt-1 pb-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={saving}>
@@ -144,21 +163,8 @@ function OrderDetailModal({
   const [savingTracking, setSavingTracking] = useState(false);
   const [editingStatus, setEditingStatus] = useState(false);
 
-  const fmt = (amount: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
-
   const fmtDate = (d: string) =>
     new Date(d).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-
-  const statusColor: Record<OrderStatus, string> = {
-    payment_pending: "bg-yellow-100 text-yellow-800",
-    payment_confirmed: "bg-blue-100 text-blue-800",
-    processing: "bg-purple-100 text-purple-800",
-    shipped: "bg-indigo-100 text-indigo-800",
-    delivered: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-800",
-    refunded: "bg-gray-100 text-gray-800",
-  };
 
   const statusIcon: Record<OrderStatus, React.ReactNode> = {
     payment_pending: <Clock className="h-3 w-3" />,
@@ -393,6 +399,54 @@ function OrderDetailModal({
   );
 }
 
+// ── Confirmation Modal ────────────────────────────────────────────────────────
+function ConfirmationModal({
+  title,
+  message,
+  confirmLabel = "Confirm",
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    cancelRef.current?.focus();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-modal-title"
+    >
+      <div className="bg-white w-full max-w-sm mx-4 rounded-lg shadow-xl p-6">
+        <h2 id="confirm-modal-title" className="text-base font-semibold mb-2">{title}</h2>
+        <p className="text-sm text-gray-600 mb-6">{message}</p>
+        <div className="flex gap-3">
+          <Button ref={cancelRef} variant="outline" onClick={onCancel} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Date preset helpers ───────────────────────────────────────────────────────
 type DatePreset = "7d" | "30d" | "90d" | "180d" | "all" | "custom";
 
@@ -438,6 +492,8 @@ export default function OrderManagement() {
   const [shipOrder, setShipOrder] = useState<OrderWithPayments | null>(null);
   const [detailOrder, setDetailOrder] = useState<OrderWithPayments | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const [datePreset, setDatePreset] = useState<DatePreset>("7d");
   const [fromDate, setFromDate] = useState<string>(daysAgoStr(7));
@@ -445,12 +501,7 @@ export default function OrderManagement() {
 
   const { get, put, delete: del } = useAuthenticatedFetch();
 
-  useEffect(() => {
-    fetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromDate, toDate, statusFilter]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setFetchError(null);
@@ -468,7 +519,11 @@ export default function OrderManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [get, statusFilter, fromDate, toDate]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
     try {
@@ -507,14 +562,22 @@ export default function OrderManagement() {
   };
 
 
-  const handleDeleteOrder = async (orderId: string) => {
-    if (!confirm("Delete this order? This cannot be undone.")) return;
+  const handleDeleteOrder = (orderId: string) => {
+    setPendingDeleteId(orderId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteId) return;
     try {
-      await del(`/api/orders/${orderId}`, { requireAdmin: true });
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      await del(`/api/orders/${pendingDeleteId}`, { requireAdmin: true });
+      setOrders((prev) => prev.filter((o) => o.id !== pendingDeleteId));
       toast.success("Order deleted");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete order");
+    } finally {
+      setDeleteConfirmOpen(false);
+      setPendingDeleteId(null);
     }
   };
 
@@ -530,19 +593,6 @@ export default function OrderManagement() {
       default: return <Clock className="h-3.5 w-3.5" />;
     }
   };
-
-  const statusColor: Record<OrderStatus, string> = {
-    payment_pending: "bg-yellow-100 text-yellow-800",
-    payment_confirmed: "bg-blue-100 text-blue-800",
-    processing: "bg-purple-100 text-purple-800",
-    shipped: "bg-indigo-100 text-indigo-800",
-    delivered: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-800",
-    refunded: "bg-gray-100 text-gray-800",
-  };
-
-  const fmt = (amount: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
 
   const fmtDate = (d: string) =>
     new Date(d).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
@@ -572,6 +622,15 @@ export default function OrderManagement() {
     <div className="space-y-3">
       {/* Dialogs */}
       {shipOrder && <ShipOrderDialog order={shipOrder} onClose={() => setShipOrder(null)} onShipped={handleShipOrder} />}
+      {deleteConfirmOpen && (
+        <ConfirmationModal
+          title="Delete order?"
+          message="This cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => { setDeleteConfirmOpen(false); setPendingDeleteId(null); }}
+        />
+      )}
       {detailOrder && (
         <OrderDetailModal
           order={detailOrder}

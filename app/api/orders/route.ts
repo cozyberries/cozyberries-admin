@@ -94,7 +94,12 @@ export async function POST(request: NextRequest) {
 
     if (itemsError) {
       console.error("Error inserting order items:", itemsError);
-      // Order was created; log but don't fail the request
+      // Rollback: delete the created order so we don't leave an empty shell
+      await supabase.from("orders").delete().eq("id", order.id);
+      return NextResponse.json(
+        { error: `Failed to save order items: ${itemsError.message}` },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ order: { ...order, items: body.items } }, { status: 201 });
@@ -121,19 +126,27 @@ export async function GET(request: NextRequest) {
     const fromDate = searchParams.get("from_date");
     const toDate = searchParams.get("to_date");
 
+    // Helper to get end-of-day ISO string for toDate filter
+    const toDateEndOfDay = toDate
+      ? (() => { const d = new Date(toDate); d.setHours(23, 59, 59, 999); return d.toISOString(); })()
+      : null;
+
+    // Count query with identical filters (no pagination)
+    let countQuery = supabase.from("orders").select("*", { count: "exact", head: true });
+    if (status && status !== "all") countQuery = countQuery.eq("status", status);
+    if (fromDate) countQuery = countQuery.gte("created_at", fromDate);
+    if (toDateEndOfDay) countQuery = countQuery.lte("created_at", toDateEndOfDay);
+    const { count: totalCount } = await countQuery;
+
+    // Paginated data query
     let query = supabase
       .from("orders")
       .select("*")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
-
     if (status && status !== "all") query = query.eq("status", status);
     if (fromDate) query = query.gte("created_at", fromDate);
-    if (toDate) {
-      const endOfDay = new Date(toDate);
-      endOfDay.setHours(23, 59, 59, 999);
-      query = query.lte("created_at", endOfDay.toISOString());
-    }
+    if (toDateEndOfDay) query = query.lte("created_at", toDateEndOfDay);
 
     const { data: orders, error: ordersError } = await query;
 
@@ -188,7 +201,7 @@ export async function GET(request: NextRequest) {
       payments: paymentsMap[order.id] || [],
     })) || [];
 
-    return NextResponse.json({ orders: ordersWithData, total: orders?.length || 0 });
+    return NextResponse.json({ orders: ordersWithData, total: totalCount ?? ordersWithData.length });
   } catch (error) {
     console.error("Error fetching orders:", error);
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });

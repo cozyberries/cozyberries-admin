@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
     X,
     Save,
@@ -47,6 +47,7 @@ export default function OrderForm({ onCancel, onSuccess }) {
     const [shippingAddressPhone, setShippingAddressPhone] = useState("");
     const [shippingAddressCountry, setShippingAddressCountry] = useState("India");
     const [notes, setNotes] = useState("");
+    const [deliveryCharge, setDeliveryCharge] = useState(50);
 
     // Customer search
     const [customerSearchTerm, setCustomerSearchTerm] = useState("");
@@ -75,7 +76,7 @@ export default function OrderForm({ onCancel, onSuccess }) {
         customer: null,
     });
 
-    useEffect(() => { fetchProducts(); }, []);
+    useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -96,13 +97,9 @@ export default function OrderForm({ onCancel, onSuccess }) {
     const fetchCustomers = async (search) => {
         try {
             setCustomersLoading(true);
-            const response = await get("/api/users?limit=20", { requireAdmin: true });
+            const response = await get(`/api/users?limit=8&search=${encodeURIComponent(search)}`, { requireAdmin: true });
             const data = await response.json();
-            const filtered = (data.users || []).filter((u) => {
-                const term = search.toLowerCase();
-                return u.email?.toLowerCase().includes(term) || u.full_name?.toLowerCase().includes(term) || u.phone?.includes(term);
-            });
-            setCustomers(filtered.slice(0, 8));
+            setCustomers(data.users || []);
         } catch { setCustomers([]); }
         finally { setCustomersLoading(false); }
     };
@@ -115,8 +112,7 @@ export default function OrderForm({ onCancel, onSuccess }) {
         setError((prev) => ({ ...prev, customer: null }));
     };
 
-    const handleCreateUser = async (e) => {
-        e.preventDefault();
+    const handleCreateUser = async () => {
         setCreateUserError("");
 
         // Validate phone
@@ -136,10 +132,6 @@ export default function OrderForm({ onCancel, onSuccess }) {
             }, { requireAdmin: true });
 
             const data = await response.json();
-            if (!response.ok) {
-                setCreateUserError(data.error || "Failed to create user");
-                return;
-            }
 
             // Auto-select the newly created user
             const newUser = {
@@ -162,7 +154,7 @@ export default function OrderForm({ onCancel, onSuccess }) {
         }
     };
 
-    const fetchProducts = async () => {
+    const fetchProducts = useCallback(async () => {
         try {
             setProductsLoading(true);
             const response = await get("/api/products?limit=100");
@@ -170,7 +162,7 @@ export default function OrderForm({ onCancel, onSuccess }) {
             setProducts(data.products || []);
         } catch (err) { console.error(err); }
         finally { setProductsLoading(false); }
-    };
+    }, [get]);
 
     // Unique key per cart line: productId (no variant) or productId-variantSlug
     const makeKey = (productId, variantSlug) =>
@@ -216,9 +208,9 @@ export default function OrderForm({ onCancel, onSuccess }) {
 
     const calculateOrderSummary = () => {
         const subtotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const delivery_charge = selectedItems.length > 0 ? 50 : 0;
-        const tax_amount = 0;
-        return { subtotal, delivery_charge, tax_amount, total_amount: subtotal + delivery_charge };
+        const delivery_charge = selectedItems.length > 0 ? (deliveryCharge || 0) : 0;
+        const tax_amount = Math.round(subtotal * 0.05 * 100) / 100;
+        return { subtotal, delivery_charge, tax_amount, total_amount: subtotal + delivery_charge + tax_amount };
     };
 
     const fmt = (amount) =>
@@ -418,16 +410,16 @@ export default function OrderForm({ onCancel, onSuccess }) {
 
                         {/* Inline create user form */}
                         {showCreateUser && !selectedCustomer && (
-                            <form onSubmit={handleCreateUser} className="bg-gray-50 rounded-lg p-3 space-y-2.5 border border-gray-200">
+                            <div className="bg-gray-50 rounded-lg p-3 space-y-2.5 border border-gray-200">
                                 <p className="text-xs font-medium text-gray-700">New User</p>
                                 <div>
                                     <Label className="text-xs">Phone * <span className="text-gray-400 font-normal">(India +91)</span></Label>
-                                    <div className="mt-1">
+                                    <div className="mt-1 overflow-hidden">
                                         <PhoneInput country="in" enableSearch={false} disableDropdown={true}
                                             value={createUserPhone}
                                             onChange={(phone) => { setCreateUserPhone(phone); setCreateUserError(""); }}
                                             placeholder="9876543210"
-                                            className="rounded-sm outline-none phone-input-container border-0"
+                                            className="rounded-sm outline-none phone-input-container border-0 w-full"
                                         />
                                     </div>
                                 </div>
@@ -444,10 +436,10 @@ export default function OrderForm({ onCancel, onSuccess }) {
                                         placeholder="customer@email.com" />
                                 </div>
                                 {createUserError && <p className="text-red-500 text-xs">{createUserError}</p>}
-                                <Button type="submit" size="sm" disabled={createUserLoading} className="w-full">
+                                <Button type="button" size="sm" disabled={createUserLoading} className="w-full" onClick={handleCreateUser}>
                                     {createUserLoading ? "Creating..." : "Create & Select User"}
                                 </Button>
-                            </form>
+                            </div>
                         )}
 
                         <div>
@@ -619,7 +611,12 @@ export default function OrderForm({ onCancel, onSuccess }) {
                                         <span className="w-7 text-center text-sm font-medium">{item.quantity}</span>
                                         <button type="button"
                                             className="w-7 h-7 flex items-center justify-center border rounded text-gray-600 hover:bg-gray-50 text-lg leading-none"
-                                            disabled={item.variant && item.quantity >= item.variant.stock_quantity}
+                                            disabled={(() => {
+                                                const stock = item.variant
+                                                    ? item.variant.stock_quantity
+                                                    : item.product?.stock_quantity;
+                                                return typeof stock === "number" && item.quantity >= stock;
+                                            })()}
                                             onClick={() => handleQuantityChange(item.key, item.quantity + 1)}>+</button>
                                         <button type="button" onClick={() => handleRemoveItem(item.key)}
                                             className="ml-1 p-1 text-red-400 hover:text-red-600">
@@ -629,12 +626,26 @@ export default function OrderForm({ onCancel, onSuccess }) {
                                 </div>
                             ))}
                             {/* Summary */}
-                            <div className="pt-2 space-y-1 text-sm">
+                            <div className="pt-2 space-y-1.5 text-sm">
                                 <div className="flex justify-between text-gray-500">
                                     <span>Subtotal</span><span>{fmt(orderSummary.subtotal)}</span>
                                 </div>
+                                <div className="flex items-center justify-between text-gray-500">
+                                    <span className="shrink-0">Delivery</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-gray-400 text-xs">₹</span>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            value={deliveryCharge}
+                                            onChange={(e) => setDeliveryCharge(Math.max(0, Number(e.target.value)))}
+                                            className="w-20 text-right border rounded px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
+                                        />
+                                    </div>
+                                </div>
                                 <div className="flex justify-between text-gray-500">
-                                    <span>Delivery</span><span>{fmt(orderSummary.delivery_charge)}</span>
+                                    <span>GST (5%)</span><span>{fmt(orderSummary.tax_amount)}</span>
                                 </div>
                                 <div className="flex justify-between font-semibold border-t pt-2 mt-1">
                                     <span>Total</span>

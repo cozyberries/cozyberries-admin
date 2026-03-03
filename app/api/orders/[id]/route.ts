@@ -51,7 +51,8 @@ export async function GET(
       .order("created_at", { ascending: false });
 
     return NextResponse.json({ ...order, items: orderItems || [], payments: payments || [] });
-  } catch {
+  } catch (err) {
+    console.error("GET /api/orders/[id] error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -133,7 +134,8 @@ export async function PUT(
     }
 
     return NextResponse.json(data);
-  } catch {
+  } catch (err) {
+    console.error("PUT /api/orders/[id] error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -181,7 +183,8 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true, message: "Order deleted successfully" });
-  } catch {
+  } catch (err) {
+    console.error("DELETE /api/orders/[id] error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -20,6 +20,58 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
+    const search = searchParams.get("search") || "";
+
+    // When a search term is provided, query user_profiles directly
+    if (search) {
+      const { data: profileResults, error: profileSearchError } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, email, phone, role, is_active, is_verified, admin_notes")
+        .or(`full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
+        .limit(limit);
+
+      if (profileSearchError) {
+        console.error("Error searching user profiles:", profileSearchError);
+        return NextResponse.json({ error: "Failed to search users" }, { status: 500 });
+      }
+
+      const matchingProfiles = profileResults || [];
+      const matchingIds = matchingProfiles.map((p) => p.id);
+
+      const { data: orderStats } = matchingIds.length
+        ? await supabase.from("orders").select("user_id, total_amount").in("user_id", matchingIds)
+        : { data: [] };
+
+      const statsMap = new Map<string, { order_count: number; total_spent: number }>();
+      orderStats?.forEach((order) => {
+        if (!statsMap.has(order.user_id)) statsMap.set(order.user_id, { order_count: 0, total_spent: 0 });
+        const s = statsMap.get(order.user_id)!;
+        s.order_count += 1;
+        s.total_spent += order.total_amount || 0;
+      });
+
+      const users = matchingProfiles.map((profile) => {
+        const stats = statsMap.get(profile.id) || { order_count: 0, total_spent: 0 };
+        return {
+          id: profile.id,
+          email: profile.email,
+          full_name: profile.full_name,
+          phone: profile.phone,
+          role: profile.role || "customer",
+          is_active: profile.is_active ?? true,
+          is_verified: profile.is_verified ?? false,
+          admin_notes: profile.admin_notes,
+          order_count: stats.order_count,
+          total_spent: stats.total_spent,
+        };
+      });
+
+      return NextResponse.json({
+        users,
+        total: users.length,
+        pagination: { page: 1, perPage: limit, total: users.length },
+      });
+    }
 
     // Fetch auth.users data directly using service role
     const { data: authUsers, error: authUsersError } = await supabase.auth.admin.listUsers({
@@ -39,6 +91,7 @@ export async function GET(request: NextRequest) {
     const formattedAuthUsers = authUsers.users.map(user => ({
       id: user.id,
       email: user.email,
+      phone: user.phone,
       created_at: user.created_at,
       last_sign_in_at: user.last_sign_in_at,
       email_confirmed_at: user.email_confirmed_at,
@@ -101,8 +154,8 @@ export async function GET(request: NextRequest) {
         last_sign_in_at: authUser.last_sign_in_at,
         email_confirmed_at: authUser.email_confirmed_at,
         role: profile?.role || "customer",
-        full_name: profile?.full_name,
-        phone: profile?.phone,
+        full_name: profile?.full_name || authUser.raw_user_meta_data?.full_name,
+        phone: profile?.phone || authUser.phone,
         is_active: profile?.is_active ?? true,
         is_verified: profile?.is_verified ?? false,
         order_count: stats.order_count,
@@ -143,7 +196,11 @@ export async function POST(request: NextRequest) {
     if (!body.phone || typeof body.phone !== "string") {
       return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
     }
-    const phone = body.phone.startsWith("+") ? body.phone : `+${body.phone}`;
+    const rawPhone = body.phone.trim();
+    const phone = rawPhone.startsWith("+") ? rawPhone : `+${rawPhone}`;
+    if (!/^\+[1-9]\d{1,14}$/.test(phone)) {
+      return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
+    }
 
     // Create Supabase Auth user
     const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
@@ -163,7 +220,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert user profile (non-fatal if it fails)
+    // Insert user profile; rollback auth user if this fails
     const { error: profileError } = await supabase.from("user_profiles").insert({
       id: newUser.user.id,
       phone,
@@ -175,7 +232,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (profileError) {
-      console.error("Failed to create user profile:", profileError);
+      console.error("Failed to create user profile, rolling back auth user:", profileError);
+      await supabase.auth.admin.deleteUser(newUser.user.id);
+      return NextResponse.json(
+        { error: `Failed to create user: ${profileError.message}` },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(
