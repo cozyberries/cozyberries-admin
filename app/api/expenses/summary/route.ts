@@ -33,29 +33,37 @@ export async function GET(request: NextRequest) {
 let schemaProbed = false;
 let hasStatusColumn = false;
 let hasCategoryJoin = false;
+let probePromise: Promise<void> | null = null;
 
 /**
  * Probe the expenses table schema once to discover available columns/joins.
- * Results are cached so subsequent requests use the optimal query directly.
+ * Uses a shared promise to serialize concurrent callers — only one set of
+ * probe queries ever runs, and all concurrent requests await the same result.
  */
 async function probeSchema(supabase: ReturnType<typeof createAdminSupabaseClient>): Promise<void> {
   if (schemaProbed) return;
+  if (probePromise) return probePromise;
 
-  // Check if category join works
-  const { error: catErr } = await supabase
-    .from("expenses")
-    .select("amount, category_data:expense_categories(name, display_name)")
-    .limit(0);
-  hasCategoryJoin = !catErr;
+  probePromise = (async () => {
+    // Check if category join works
+    const { error: catErr } = await supabase
+      .from("expenses")
+      .select("amount, category_data:expense_categories(name, display_name)")
+      .limit(0);
+    hasCategoryJoin = !catErr;
 
-  // Check if status column exists
-  const { error: statusErr } = await supabase
-    .from("expenses")
-    .select("amount, status")
-    .limit(0);
-  hasStatusColumn = !statusErr;
+    // Check if status column exists
+    const { error: statusErr } = await supabase
+      .from("expenses")
+      .select("amount, status")
+      .limit(0);
+    hasStatusColumn = !statusErr;
 
-  schemaProbed = true;
+    schemaProbed = true;
+    probePromise = null;
+  })();
+
+  return probePromise;
 }
 
 async function fetchExpenses(supabase: ReturnType<typeof createAdminSupabaseClient>): Promise<ExpenseRow[]> {
