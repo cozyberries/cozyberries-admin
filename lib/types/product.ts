@@ -1,5 +1,6 @@
 export interface ProductImage {
-  url: string;
+  url?: string;
+  storage_path?: string;
   is_primary?: boolean;
   display_order?: number;
   product_slug?: string;

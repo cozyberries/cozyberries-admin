@@ -3,7 +3,7 @@ import { ProductImage, CategoryImage } from "@/lib/types/product";
 
 // ---------- Helper Functions ----------
 
-// Get the primary image URL from product images array
+// Get the primary image URL from product images array (same fallback as category)
 export const getPrimaryImageUrl = (
   images?: ProductImage[]
 ): string | undefined => {
@@ -14,20 +14,31 @@ export const getPrimaryImageUrl = (
   // Find primary image first
   const primaryImage = images.find((img) => img.is_primary);
   if (primaryImage) {
-    return primaryImage.url;
+    return primaryImage.url || (primaryImage.storage_path ? `/${primaryImage.storage_path}` : undefined);
   }
 
   // Fall back to first image if no primary
-  return images[0].url;
+  const first = images[0];
+  return first.url || (first.storage_path ? `/${first.storage_path}` : undefined);
 };
 
-// Get all image URLs from product images array
+// Get all image URLs from product images array (same fallback as getAllCategoryImageUrls)
 export const getAllImageUrls = (images?: ProductImage[]): string[] => {
   if (!images || images.length === 0) {
     return []; // Return empty array instead of placeholder when no images
   }
 
-  return images.map((img) => img.url).filter(Boolean) as string[];
+  return images.map((img) => {
+    const url = img.url || (img.storage_path ? `/${img.storage_path}` : null);
+    if (url === null) {
+      console.warn("[getAllImageUrls] Image missing both url and storage_path", {
+        image: img,
+        url: img.url,
+        storage_path: img.storage_path,
+      });
+    }
+    return url;
+  }).filter((u): u is string => u != null);
 };
 
 // Get the primary image URL from category images array
