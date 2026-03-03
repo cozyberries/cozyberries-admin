@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest } from "@/lib/jwt-auth";
 
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    
-    // Get the current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const auth = await authenticateRequest(request);
+
+    if (!auth.isAuthenticated || !auth.isAdmin) {
       return NextResponse.json(
-        { error: "Authentication required" },
+        { error: "Admin access required" },
         { status: 401 }
       );
     }
+
+    const supabase = createAdminSupabaseClient();
 
     // Get current date and calculate date ranges
     const now = new Date();

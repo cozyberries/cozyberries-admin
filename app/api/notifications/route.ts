@@ -1,16 +1,12 @@
-import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest } from "@/lib/jwt-auth";
 
 // GET: return notifications for the authenticated user (used by NotificationCenter)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const auth = await authenticateRequest(request);
 
-    if (authError || !user) {
+    if (!auth.isAuthenticated) {
       return NextResponse.json(
         { error: "Authentication required. Please sign in to view notifications." },
         { status: 401 }

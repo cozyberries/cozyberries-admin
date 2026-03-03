@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 
 export default function AdminExpensesPage() {
-  const { user, loading, isAuthenticated, isAdmin, userProfile } = useAuth();
+  const { user, loading, isAuthenticated, isAdmin } = useAuth();
   const router = useRouter();
   const [accessDenied, setAccessDenied] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -89,7 +89,7 @@ export default function AdminExpensesPage() {
               <Shield className="h-4 w-4" />
               <AlertDescription>
                 Admin privileges are required to access this page. Your current
-                role is: <strong>{userProfile?.role || "customer"}</strong>
+                role is: <strong>{user?.role || "unknown"}</strong>
               </AlertDescription>
             </Alert>
 

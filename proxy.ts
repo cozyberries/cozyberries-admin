@@ -1,104 +1,46 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { verifyAdminJWT } from "./lib/admin-auth";
 
-// Type definition for cookie objects used by Supabase SSR
-interface CookieOptions {
-    path?: string;
-    domain?: string;
-    maxAge?: number;
-    expires?: Date;
-    httpOnly?: boolean;
-    secure?: boolean;
-    sameSite?: "lax" | "strict" | "none";
-}
-
-interface CookieToSet {
-    name: string;
-    value: string;
-    options?: CookieOptions;
-}
+const COOKIE_NAME = 'admin_session';
 
 export async function proxy(request: NextRequest) {
-    let supabaseResponse = NextResponse.next({
-        request,
-    });
-
-    // Create Supabase client for proxy
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll();
-                },
-                setAll(cookiesToSet: CookieToSet[]) {
-                    cookiesToSet.forEach(({ name, value }: CookieToSet) =>
-                        request.cookies.set(name, value)
-                    );
-                    supabaseResponse = NextResponse.next({
-                        request,
-                    });
-                    cookiesToSet.forEach(({ name, value, options }: CookieToSet) =>
-                        supabaseResponse.cookies.set(name, value, options)
-                    );
-                },
-            },
-        }
-    );
-
-    const { data, error } = await supabase.auth.getUser();
-
     // Skip setup page - it has its own protection
     if (request.nextUrl.pathname === "/setup") {
-        return supabaseResponse;
+        return NextResponse.next({ request });
     }
 
-    // Handle auth errors: distinguish "no session" from real failures
-    if (error) {
-        // AuthSessionMissingError (status 400, __isAuthError) is the normal
-        // "not logged in" state — treat it the same as a missing user.
-        const isSessionMissing =
-            (error as any).__isAuthError === true ||
-            error.message?.includes("Auth session missing");
+    const token = request.cookies.get(COOKIE_NAME)?.value;
 
-        if (!isSessionMissing) {
-            // Unexpected auth-service error → surface as 500
-            console.error("Authentication service error in proxy:", error);
-            return NextResponse.json(
-                { error: "Authentication service error" },
-                { status: 500 }
+    if (!token) {
+        const redirectPath = encodeURIComponent(request.nextUrl.pathname);
+        return NextResponse.redirect(
+            new URL(`/login?redirect=${redirectPath}`, request.url)
+        );
+    }
+
+    try {
+        const decoded = verifyAdminJWT(token);
+
+        const isAdmin = decoded.role === "admin" || decoded.role === "super_admin";
+
+        if (!isAdmin) {
+            console.warn(`Non-admin user ${decoded.id} attempted to access admin route: ${request.nextUrl.pathname}`);
+            const redirectPath = encodeURIComponent(request.nextUrl.pathname);
+            return NextResponse.redirect(
+                new URL(`/login?redirect=${redirectPath}&error=unauthorized`, request.url)
             );
         }
 
-        // No session → redirect to login
+        return NextResponse.next({ request });
+    } catch (error) {
+        // Invalid/expired token - redirect to login and clear the bad cookie
         const redirectPath = encodeURIComponent(request.nextUrl.pathname);
-        return NextResponse.redirect(
+        const response = NextResponse.redirect(
             new URL(`/login?redirect=${redirectPath}`, request.url)
         );
+        response.cookies.set(COOKIE_NAME, '', { maxAge: 0, path: '/' });
+        return response;
     }
-
-    // For all other routes, ensure user is authenticated
-    if (!data.user) {
-        const redirectPath = encodeURIComponent(request.nextUrl.pathname);
-        return NextResponse.redirect(
-            new URL(`/login?redirect=${redirectPath}`, request.url)
-        );
-    }
-
-    // Verify admin role server-side
-    const userRole = data.user.user_metadata?.role;
-    const isAdmin = userRole === "admin" || userRole === "super_admin";
-
-    if (!isAdmin) {
-        console.warn(`Non-admin user ${data.user.id} attempted to access admin route: ${request.nextUrl.pathname}`);
-        const redirectPath = encodeURIComponent(request.nextUrl.pathname);
-        return NextResponse.redirect(
-            new URL(`/login?redirect=${redirectPath}&error=unauthorized`, request.url)
-        );
-    }
-
-    return supabaseResponse;
 }
 
 export const config = {

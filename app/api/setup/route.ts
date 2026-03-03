@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-server";
-import { generateSuperAdminToken } from "@/lib/jwt-auth";
+import { createAdmin, generateAdminJWT, setSessionCookie } from "@/lib/admin-auth";
 
 // This endpoint is used for initial admin setup
-// In production, this should be protected with a setup key or disabled after first use
+// Protected with a setup key - disabled after first admin is created
 export async function POST(request: NextRequest) {
   try {
     let body;
@@ -17,9 +17,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password, setupKey } = body;
+    const { username, password, email, setupKey } = body;
 
-    // Verify setup key (use environment variable for security)
+    // Verify setup key
     const expectedSetupKey = process.env.ADMIN_SETUP_KEY || 'super-secret-setup-key-change-this';
     if (setupKey !== expectedSetupKey) {
       return NextResponse.json(
@@ -28,69 +28,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!email || !password) {
+    if (!username || !password) {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        { error: "Username and password are required" },
         { status: 400 }
       );
     }
 
-    // Use admin client to create user
+    // Verify no admin users exist yet (prevent duplicate setup)
     const supabase = createAdminSupabaseClient();
-    
-    // Create the user in auth.users
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-      email,
+    const { data: existingAdmins } = await supabase
+      .from('admin_users')
+      .select('id')
+      .limit(1);
+
+    if (existingAdmins && existingAdmins.length > 0) {
+      return NextResponse.json(
+        { error: "Setup already completed. An admin user already exists." },
+        { status: 409 }
+      );
+    }
+
+    // Create admin in admin_users table
+    const result = await createAdmin({
+      username,
       password,
-      email_confirm: true, // Auto-confirm email for admin users
-      user_metadata: {
-        full_name: 'Administrator',
-        role: 'super_admin'
-      }
+      email: email || undefined,
+      full_name: 'Administrator',
+      role: 'super_admin',
     });
 
-    if (authError || !authUser.user) {
-      console.error('Error creating admin user:', authError);
+    if (!result.success) {
+      console.error("Failed to create admin user:", result.error);
       return NextResponse.json(
-        { error: "Failed to create admin user: " + (authError?.message || 'Unknown error') },
+        { error: "Failed to create admin user" },
         { status: 500 }
       );
     }
 
-    // Create or update user profile with admin role
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .upsert({
-        id: authUser.user.id,
-        role: 'super_admin',
-        full_name: 'Administrator',
-        is_active: true,
-        is_verified: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-
-    if (profileError) {
-      console.error('Error creating admin profile:', profileError);
-      // Try to delete the auth user if profile creation failed
-      await supabase.auth.admin.deleteUser(authUser.user.id);
+    if (!result.admin) {
       return NextResponse.json(
-        { error: "Failed to create admin profile: " + profileError.message },
+        { error: "Admin user creation returned no data" },
         { status: 500 }
       );
     }
 
-    // Generate JWT token for the admin user
-    const adminToken = generateSuperAdminToken(authUser.user.id, email);
+    // Generate JWT and set session cookie
+    const token = generateAdminJWT(result.admin);
+    await setSessionCookie(token);
 
     return NextResponse.json({
       message: "Admin user created successfully",
       user: {
-        id: authUser.user.id,
-        email: authUser.user.email,
+        id: result.admin.id,
+        username: result.admin.username,
+        email: result.admin.email,
         role: 'super_admin'
       },
-      token: adminToken
+      token
     });
 
   } catch (error) {
@@ -106,12 +101,11 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const supabase = createAdminSupabaseClient();
-    
-    // Check if any admin users exist
+
+    // Check if any admin users exist in admin_users table
     const { data: adminUsers, error } = await supabase
-      .from('user_profiles')
+      .from('admin_users')
       .select('id')
-      .in('role', ['admin', 'super_admin'])
       .limit(1);
 
     if (error) {

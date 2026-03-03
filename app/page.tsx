@@ -17,7 +17,7 @@ import {
 import { Shield, AlertTriangle, Loader2 } from "lucide-react";
 
 export default function AdminPage() {
-  const { user, loading, isAuthenticated, isAdmin, userProfile, signOut } = useAuth();
+  const { user, loading, isAuthenticated, isAdmin, signOut } = useAuth();
   const router = useRouter();
   const [accessDenied, setAccessDenied] = useState(false);
 
@@ -70,7 +70,7 @@ export default function AdminPage() {
               <Shield className="h-4 w-4" />
               <AlertDescription>
                 Admin privileges are required to access this page. Your current
-                role is: <strong>{userProfile?.role || "customer"}</strong>
+                role is: <strong>{user?.role || "unknown"}</strong>
               </AlertDescription>
             </Alert>
 

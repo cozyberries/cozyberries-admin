@@ -6,6 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-t
 
 export interface UserPayload {
   id: string;
+  username?: string;
   email?: string;
   role: 'customer' | 'admin' | 'super_admin';
   isAnonymous: boolean;
@@ -138,13 +139,25 @@ export async function authenticateRequest(request: Request): Promise<{
   isAdmin: boolean;
   isSuperAdmin: boolean;
 }> {
-  const token = extractTokenFromHeaders(request.headers);
-  
+  // Try Bearer token first (API clients)
+  let token = extractTokenFromHeaders(request.headers);
+
+  // Fallback: try HttpOnly cookie (browser-based admin session)
+  if (!token) {
+    const cookieHeader = request.headers.get('cookie');
+    if (cookieHeader) {
+      const match = cookieHeader.match(/admin_session=([^;]+)/);
+      if (match) {
+        token = match[1];
+      }
+    }
+  }
+
   if (!token) {
     // Generate anonymous token for unauthenticated requests
     const anonymousToken = generateAnonymousToken();
     const anonymousUser = verifyToken(anonymousToken) as AnonymousUserPayload;
-    
+
     return {
       user: anonymousUser,
       userId: undefined,
