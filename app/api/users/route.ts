@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         users,
         total: users.length,
-        pagination: { page: 1, perPage: limit, total: users.length },
+        pagination: { page: Math.floor(offset / limit) + 1, perPage: limit, total: users.length },
       });
     }
 

@@ -95,7 +95,15 @@ export async function POST(request: NextRequest) {
     if (itemsError) {
       console.error("Error inserting order items:", itemsError);
       // Rollback: delete the created order so we don't leave an empty shell
-      await supabase.from("orders").delete().eq("id", order.id);
+      try {
+        await supabase.from("orders").delete().eq("id", order.id);
+      } catch (rollbackErr) {
+        console.error("Failed to rollback order after items insert error:", {
+          orderId: order.id,
+          originalError: itemsError.message,
+          rollbackErr,
+        });
+      }
       return NextResponse.json(
         { error: `Failed to save order items: ${itemsError.message}` },
         { status: 500 }
@@ -127,16 +135,28 @@ export async function GET(request: NextRequest) {
     const toDate = searchParams.get("to_date");
 
     // Helper to get end-of-day ISO string for toDate filter
-    const toDateEndOfDay = toDate
-      ? (() => { const d = new Date(toDate); d.setHours(23, 59, 59, 999); return d.toISOString(); })()
-      : null;
+    let toDateEndOfDay: string | null = null;
+    if (toDate) {
+      const d = new Date(toDate);
+      if (!Number.isNaN(d.getTime())) {
+        d.setHours(23, 59, 59, 999);
+        toDateEndOfDay = d.toISOString();
+      }
+    }
 
     // Count query with identical filters (no pagination)
     let countQuery = supabase.from("orders").select("*", { count: "exact", head: true });
     if (status && status !== "all") countQuery = countQuery.eq("status", status);
     if (fromDate) countQuery = countQuery.gte("created_at", fromDate);
     if (toDateEndOfDay) countQuery = countQuery.lte("created_at", toDateEndOfDay);
-    const { count: totalCount } = await countQuery;
+    const { count: totalCount, error: countError } = await countQuery;
+    if (countError) {
+      console.error("Count query error:", countError);
+      return NextResponse.json(
+        { error: "Failed to count orders: " + countError.message },
+        { status: 500 }
+      );
+    }
 
     // Paginated data query
     let query = supabase

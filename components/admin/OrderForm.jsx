@@ -25,6 +25,8 @@ import { toast } from "sonner";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 
+const GST_RATE = 0.05;
+
 export default function OrderForm({ onCancel, onSuccess }) {
     const { get, post } = useAuthenticatedFetch();
 
@@ -75,6 +77,16 @@ export default function OrderForm({ onCancel, onSuccess }) {
         shippingAddressPhone: null,
         customer: null,
     });
+
+    const fetchProducts = useCallback(async () => {
+        try {
+            setProductsLoading(true);
+            const response = await get("/api/products?limit=100");
+            const data = await response.json();
+            setProducts(data.products || []);
+        } catch (err) { console.error(err); }
+        finally { setProductsLoading(false); }
+    }, [get]);
 
     useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -154,16 +166,6 @@ export default function OrderForm({ onCancel, onSuccess }) {
         }
     };
 
-    const fetchProducts = useCallback(async () => {
-        try {
-            setProductsLoading(true);
-            const response = await get("/api/products?limit=100");
-            const data = await response.json();
-            setProducts(data.products || []);
-        } catch (err) { console.error(err); }
-        finally { setProductsLoading(false); }
-    }, [get]);
-
     // Unique key per cart line: productId (no variant) or productId-variantSlug
     const makeKey = (productId, variantSlug) =>
         variantSlug ? `${productId}-${variantSlug}` : productId;
@@ -209,7 +211,7 @@ export default function OrderForm({ onCancel, onSuccess }) {
     const calculateOrderSummary = () => {
         const subtotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
         const delivery_charge = selectedItems.length > 0 ? (deliveryCharge || 0) : 0;
-        const tax_amount = Math.round(subtotal * 0.05 * 100) / 100;
+        const tax_amount = Math.round(subtotal * GST_RATE * 100) / 100;
         return { subtotal, delivery_charge, tax_amount, total_amount: subtotal + delivery_charge + tax_amount };
     };
 

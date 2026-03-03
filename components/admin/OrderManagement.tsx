@@ -414,15 +414,17 @@ function ConfirmationModal({
   onCancel: () => void;
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const cancelCallbackRef = useRef(onCancel);
+  useEffect(() => { cancelCallbackRef.current = onCancel; }, [onCancel]);
 
   useEffect(() => {
     cancelRef.current?.focus();
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") cancelCallbackRef.current();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
+  }, []);
 
   return (
     <div
@@ -572,6 +574,7 @@ export default function OrderManagement() {
     try {
       await del(`/api/orders/${pendingDeleteId}`, { requireAdmin: true });
       setOrders((prev) => prev.filter((o) => o.id !== pendingDeleteId));
+      if (detailOrder?.id === pendingDeleteId) setDetailOrder(null);
       toast.success("Order deleted");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete order");
