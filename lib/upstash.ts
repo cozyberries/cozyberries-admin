@@ -1,5 +1,4 @@
 import { Redis } from "@upstash/redis";
-import { directRedis } from "./redis-client";
 
 // Create Redis client instance
 export const redis = new Redis({
@@ -12,7 +11,7 @@ export class UpstashService {
   // Cache product data
   static async cacheProduct(
     productId: string,
-    productData: any,
+    productData: unknown,
     ttl: number = 1800
   ) {
     try {
@@ -24,7 +23,7 @@ export class UpstashService {
       const serializedData = JSON.stringify(productData);
       await redis.setex(`product:${productId}`, ttl, serializedData);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -46,7 +45,7 @@ export class UpstashService {
         return JSON.parse(productData);
       }
       return productData;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -70,7 +69,7 @@ export class UpstashService {
         remaining: Math.max(0, limit - current),
         resetTime: Date.now() + window * 1000,
       };
-    } catch (error) {
+    } catch {
       return {
         allowed: true,
         remaining: limit,
@@ -80,7 +79,7 @@ export class UpstashService {
   }
 
   // Generic cache setter
-  static async set(key: string, value: any, ttl?: number) {
+  static async set(key: string, value: unknown, ttl?: number) {
     try {
       // Validate value before stringifying
       if (value === null || value === undefined) {
@@ -94,7 +93,7 @@ export class UpstashService {
         await redis.set(key, serializedValue);
       }
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -129,7 +128,7 @@ export class UpstashService {
       }
 
       return data;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -159,7 +158,7 @@ export class UpstashService {
       const isStale = ttl > 0 && ttl < 300;
       
       return { data: parsedData, ttl, isStale };
-    } catch (error) {
+    } catch {
       return { data: null, ttl: -1, isStale: false };
     }
   }
@@ -169,7 +168,7 @@ export class UpstashService {
     try {
       await redis.del(key);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -183,8 +182,8 @@ export class UpstashService {
         console.log(`Deleted ${keys.length} cache keys matching pattern: ${pattern}`);
       }
       return true;
-    } catch (error) {
-      console.error('Error deleting cache pattern:', error);
+    } catch (err) {
+      console.error('Error deleting cache pattern:', err);
       return false;
     }
   }

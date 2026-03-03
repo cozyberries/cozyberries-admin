@@ -25,15 +25,7 @@ import { X, Plus, Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import {
-  ExpenseCreate,
-  ExpenseUpdate,
-  Expense,
-  ExpenseCategory,
-  ExpenseCategoryData,
-  ExpensePriority,
-  PaymentMethod,
-} from "@/lib/types/expense";
+import { Expense, ExpenseCategoryData } from "@/lib/types/expense";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
 import { toast } from "sonner";
 import { sendActivity } from "@/lib/utils/activities";
@@ -70,19 +62,6 @@ const expenseFormSchema = z.object({
 });
 
 type ExpenseFormData = z.infer<typeof expenseFormSchema>;
-
-const categoryLabels = {
-  office_supplies: "Office Supplies",
-  travel: "Travel",
-  marketing: "Marketing",
-  software: "Software",
-  equipment: "Equipment",
-  utilities: "Utilities",
-  professional_services: "Professional Services",
-  training: "Training",
-  maintenance: "Maintenance",
-  other: "Other",
-};
 
 const priorityLabels = {
   low: "Low",
@@ -162,8 +141,9 @@ export default function ExpenseForm({
     }
   };
 
-  React.useEffect(() => {
+  React.  useEffect(() => {
     fetchCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
   }, []);
 
   // Initialize showCustomCategory state when editing an expense

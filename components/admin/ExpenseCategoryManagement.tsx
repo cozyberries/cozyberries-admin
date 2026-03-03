@@ -34,7 +34,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -60,24 +59,16 @@ import {
   Edit,
   Trash2,
   MoreHorizontal,
-  Folder,
   Eye,
   EyeOff,
   GripVertical,
-  Palette,
 } from "lucide-react";
-import {
-  ExpenseCategoryData,
-  ExpenseCategoryCreate,
-  ExpenseCategoryUpdate,
-} from "@/lib/types/expense";
+import { ExpenseCategoryData } from "@/lib/types/expense";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
 import { toast } from "sonner";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-
-interface ExpenseCategoryManagementProps {}
 
 const categoryFormSchema = z.object({
   name: z
@@ -116,7 +107,7 @@ const colorOptions = [
   "#06B6D4", "#8B5CF6", "#F97316", "#6B7280", "#64748B"
 ];
 
-export default function ExpenseCategoryManagement({}: ExpenseCategoryManagementProps) {
+export default function ExpenseCategoryManagement() {
   const [categories, setCategories] = useState<ExpenseCategoryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -168,6 +159,7 @@ export default function ExpenseCategoryManagement({}: ExpenseCategoryManagementP
 
   useEffect(() => {
     fetchCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchCategories is stable, showInactive triggers refetch
   }, [showInactive]);
 
   const handleCreateCategory: SubmitHandler<CategoryFormData> = async (data) => {

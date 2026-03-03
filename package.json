@@ -11,7 +11,9 @@
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "seed:test-admin": "dotenv -e .env.local -- npx tsx scripts/seed-test-admin.ts",
+    "reset:admin-users": "dotenv -e .env.local -- npx tsx scripts/reset-admin-users.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

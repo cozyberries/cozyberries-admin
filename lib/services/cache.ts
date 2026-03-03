@@ -66,18 +66,18 @@ export class CacheService {
    * Get cached wishlist
    */
   static async getWishlist(userId: string): Promise<{
-    data: any[] | null;
+    data: unknown[] | null;
     ttl: number;
     isStale: boolean;
   }> {
     const key = this.generateKey(this.KEY_PREFIXES.WISHLIST, userId);
-    return await this.getWithTTL<any[]>(key);
+    return await this.getWithTTL<unknown[]>(key);
   }
 
   /**
    * Cache wishlist data
    */
-  static async setWishlist(userId: string, wishlistData: any[]): Promise<boolean> {
+  static async setWishlist(userId: string, wishlistData: unknown[]): Promise<boolean> {
     const key = this.generateKey(this.KEY_PREFIXES.WISHLIST, userId);
     return await this.set(key, wishlistData, this.TTL_CONFIG.WISHLIST);
   }
@@ -96,19 +96,19 @@ export class CacheService {
    * Get cached orders list
    */
   static async getOrders(userId: string, filters?: string): Promise<{
-    data: any[] | null;
+    data: unknown[] | null;
     ttl: number;
     isStale: boolean;
   }> {
     const suffix = filters ? `list:${filters}` : 'list:default';
     const key = this.generateKey(this.KEY_PREFIXES.ORDERS, userId, suffix);
-    return await this.getWithTTL<any[]>(key);
+    return await this.getWithTTL<unknown[]>(key);
   }
 
   /**
    * Cache orders list
    */
-  static async setOrders(userId: string, ordersData: any[], filters?: string): Promise<boolean> {
+  static async setOrders(userId: string, ordersData: unknown[], filters?: string): Promise<boolean> {
     const suffix = filters ? `list:${filters}` : 'list:default';
     const key = this.generateKey(this.KEY_PREFIXES.ORDERS, userId, suffix);
     return await this.set(key, ordersData, this.TTL_CONFIG.ORDERS);
@@ -118,18 +118,18 @@ export class CacheService {
    * Get cached order details
    */
   static async getOrderDetails(userId: string, orderId: string): Promise<{
-    data: any | null;
+    data: unknown | null;
     ttl: number;
     isStale: boolean;
   }> {
     const key = this.generateKey(this.KEY_PREFIXES.ORDER_DETAILS, userId, orderId);
-    return await this.getWithTTL<any>(key);
+    return await this.getWithTTL<unknown>(key);
   }
 
   /**
    * Cache order details
    */
-  static async setOrderDetails(userId: string, orderId: string, orderData: any): Promise<boolean> {
+  static async setOrderDetails(userId: string, orderId: string, orderData: unknown): Promise<boolean> {
     const key = this.generateKey(this.KEY_PREFIXES.ORDER_DETAILS, userId, orderId);
     return await this.set(key, orderData, this.TTL_CONFIG.ORDER_DETAILS);
   }
@@ -156,18 +156,18 @@ export class CacheService {
    * Get cached profile
    */
   static async getProfile(userId: string): Promise<{
-    data: any | null;
+    data: unknown | null;
     ttl: number;
     isStale: boolean;
   }> {
     const key = this.generateKey(this.KEY_PREFIXES.PROFILE, userId);
-    return await this.getWithTTL<any>(key);
+    return await this.getWithTTL<unknown>(key);
   }
 
   /**
    * Cache profile data
    */
-  static async setProfile(userId: string, profileData: any): Promise<boolean> {
+  static async setProfile(userId: string, profileData: unknown): Promise<boolean> {
     const key = this.generateKey(this.KEY_PREFIXES.PROFILE, userId);
     return await this.set(key, profileData, this.TTL_CONFIG.PROFILE);
   }
@@ -186,18 +186,18 @@ export class CacheService {
    * Get cached addresses
    */
   static async getAddresses(userId: string): Promise<{
-    data: any[] | null;
+    data: unknown[] | null;
     ttl: number;
     isStale: boolean;
   }> {
     const key = this.generateKey(this.KEY_PREFIXES.ADDRESSES, userId);
-    return await this.getWithTTL<any[]>(key);
+    return await this.getWithTTL<unknown[]>(key);
   }
 
   /**
    * Cache addresses data
    */
-  static async setAddresses(userId: string, addressesData: any[]): Promise<boolean> {
+  static async setAddresses(userId: string, addressesData: unknown[]): Promise<boolean> {
     const key = this.generateKey(this.KEY_PREFIXES.ADDRESSES, userId);
     return await this.set(key, addressesData, this.TTL_CONFIG.ADDRESSES);
   }

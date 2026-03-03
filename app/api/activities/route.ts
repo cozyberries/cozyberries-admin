@@ -7,9 +7,8 @@ export async function GET() {
 
 // POST: stub for activity logging (used by lib/utils/activities.ts)
 export async function POST(request: NextRequest) {
-  let body: unknown;
   try {
-    body = await request.json();
+    await request.json();
   } catch {
     return NextResponse.json(
       { success: false, error: "Invalid JSON" },

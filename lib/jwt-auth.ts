@@ -29,7 +29,7 @@ export async function generateAuthToken(userId: string, userEmail?: string): Pro
     const supabase = createAdminSupabaseClient();
     
     // Get user profile with role
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from('user_profiles')
       .select('role')
       .eq('id', userId)
@@ -176,7 +176,7 @@ export async function authenticateRequest(request: Request): Promise<{
       isAdmin: isAdminUser(user),
       isSuperAdmin: isSuperAdminUser(user),
     };
-  } catch (error) {
+  } catch {
     // If token is invalid, treat as anonymous
     const anonymousToken = generateAnonymousToken();
     const anonymousUser = verifyToken(anonymousToken) as AnonymousUserPayload;

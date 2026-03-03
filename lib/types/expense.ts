@@ -86,7 +86,7 @@ export interface ExpenseBase {
   tags?: string[];
 }
 
-export interface ExpenseCreate extends ExpenseBase { }
+export type ExpenseCreate = ExpenseBase;
 
 export interface ExpenseUpdate {
   title?: string;

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createServerSupabaseClient();
     const body = await request.json();
 
-    const { action, expense_ids, status, rejected_reason } = body;
+    const { action, expense_ids, rejected_reason } = body;
 
     if (!action || !expense_ids || !Array.isArray(expense_ids)) {
       return NextResponse.json(
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let updateData: any = {};
+    let updateData: Record<string, unknown> = {};
 
     switch (action) {
       case "approve":

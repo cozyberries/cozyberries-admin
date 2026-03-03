@@ -2,7 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 // Server-side Supabase client for App Router
-export const createServerSupabaseClient = async (cookieStore?: any) => {
+type CookieStore = {
+  getAll: () => { name: string; value: string }[];
+  setAll: (cookies: { name: string; value: string; options?: Record<string, unknown> }[]) => void;
+  set: (name: string, value: string, options?: Record<string, unknown>) => void;
+};
+
+export const createServerSupabaseClient = async (cookieStore?: CookieStore) => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -40,9 +46,9 @@ export const createServerSupabaseClient = async (cookieStore?: any) => {
         timeoutPromise
       ]);
 
-      const { cookies } = result as any;
+      const { cookies } = result as unknown as { cookies: () => Promise<CookieStore> };
       cookieStore = await cookies();
-    } catch (error) {
+    } catch {
       // Clear timeout in case of error or timeout
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -82,9 +88,9 @@ export const createServerSupabaseClient = async (cookieStore?: any) => {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet: any[]) {
+      setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
         try {
-          cookiesToSet.forEach(({ name, value, options }: any) =>
+          cookiesToSet.forEach(({ name, value, options }) =>
             cookieStore.set(name, value, options)
           );
         } catch {

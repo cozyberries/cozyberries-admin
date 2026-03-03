@@ -60,14 +60,14 @@ export const getAllCategoryImageUrls = (images?: CategoryImage[]): string[] => {
 };
 
 // ---------- Normalizer ----------
-export const normalizeProduct = (p: any): SimplifiedProduct => ({
-  id: p.id,
-  name: p.name,
-  slug: p.slug,
-  price: p.price,
-  description: p.description,
-  categoryId: p.category_id || "Uncategorized",
-  categoryName: p.categories?.name || "Uncategorized",
-  image: p.images?.[0] || undefined, // Use first image as primary
-  is_featured: p.is_featured || false,
+export const normalizeProduct = (p: Record<string, unknown>): SimplifiedProduct => ({
+  id: p.id as string,
+  name: p.name as string,
+  slug: p.slug as string,
+  price: p.price as number,
+  description: p.description as string,
+  categoryId: (p.category_id as string) || "Uncategorized",
+  categoryName: (p.categories as { name?: string } | undefined)?.name || "Uncategorized",
+  image: (p.images as string[] | undefined)?.[0] || undefined,
+  is_featured: (p.is_featured as boolean) || false,
 });

@@ -51,8 +51,8 @@ export async function GET(
 
     // Fetch user profile and approver profile separately
     const userIds = [expense.user_id, expense.approved_by].filter(Boolean);
-    let userProfiles: any[] = [];
-    let authUsers: any[] = [];
+    let userProfiles: Array<{ id: string; full_name: string | null }> = [];
+    let authUsers: Array<{ id: string; email?: string }> = [];
 
     if (userIds.length > 0) {
       try {
@@ -182,7 +182,7 @@ export async function PUT(
     }
 
     // Prepare update data
-    const updateData: any = { ...body };
+    const updateData: Record<string, unknown> = { ...body };
 
     if (categoryId) {
       updateData.category_id = categoryId;
@@ -228,8 +228,8 @@ export async function PUT(
 
     // Fetch user profiles for the updated expense
     const userIds = [data.user_id, data.approved_by].filter(Boolean);
-    let userProfiles: any[] = [];
-    let authUsers: any[] = [];
+    let userProfiles: Array<{ id: string; full_name: string | null }> = [];
+    let authUsers: Array<{ id: string; email?: string }> = [];
 
     if (userIds.length > 0) {
       try {

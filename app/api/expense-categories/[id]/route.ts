@@ -111,7 +111,7 @@ export async function PUT(
     }
 
     // Generate new slug if name is updated
-    let updateData: any = { ...body };
+    const updateData: Record<string, unknown> = { ...body };
 
     if (body.name && body.name !== existingCategory.name && !existingCategory.is_system) {
       const generateSlug = (name: string): string => {

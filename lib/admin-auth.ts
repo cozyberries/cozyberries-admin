@@ -68,13 +68,14 @@ export function verifyAdminJWT(token: string): AdminTokenPayload {
     audience: 'cozyberries-admin-panel',
   });
 
+  const d = decoded as Record<string, unknown>;
   if (
     !decoded ||
     typeof decoded !== 'object' ||
-    typeof (decoded as any).id !== 'string' ||
-    typeof (decoded as any).username !== 'string' ||
-    typeof (decoded as any).role !== 'string' ||
-    !['admin', 'super_admin'].includes((decoded as any).role)
+    typeof d.id !== 'string' ||
+    typeof d.username !== 'string' ||
+    typeof d.role !== 'string' ||
+    !['admin', 'super_admin'].includes(d.role as string)
   ) {
     throw new Error('Invalid admin token payload');
   }

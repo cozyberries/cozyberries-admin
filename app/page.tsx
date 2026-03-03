@@ -62,7 +62,7 @@ export default function AdminPage() {
               Access Denied
             </CardTitle>
             <CardDescription>
-              You don't have permission to access the admin panel
+              You don&apos;t have permission to access the admin panel
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -70,7 +70,7 @@ export default function AdminPage() {
               <Shield className="h-4 w-4" />
               <AlertDescription>
                 Admin privileges are required to access this page. Your current
-                role is: <strong>{user?.role || "unknown"}</strong>
+                role is: <strong>{user?.role ?? "unknown"}</strong>
               </AlertDescription>
             </Alert>
 

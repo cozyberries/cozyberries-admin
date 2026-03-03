@@ -42,7 +42,7 @@ export interface ProductBase {
   images?: string[];
 }
 
-export interface ProductCreate extends ProductBase {}
+export type ProductCreate = ProductBase;
 
 export interface ProductUpdate {
   name?: string;
@@ -72,7 +72,7 @@ export interface CategoryImage {
   storage_path: string;
   is_primary?: boolean;
   display_order?: number;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   url?: string;
 }
 

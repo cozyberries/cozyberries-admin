@@ -32,7 +32,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -54,10 +53,7 @@ import {
   Check,
   X,
   DollarSign,
-  Calendar,
   User,
-  Building,
-  AlertTriangle,
   CheckCircle,
   Clock,
   XCircle,
@@ -65,16 +61,12 @@ import {
 import {
   Expense,
   ExpenseStatus,
-  ExpenseCategory,
   ExpenseCategoryData,
-  ExpensePriority,
 } from "@/lib/types/expense";
 import ExpenseForm from "./ExpenseForm";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
 import { toast } from "sonner";
 import { sendActivity } from "@/lib/utils/activities";
-
-interface ExpenseManagementProps {}
 
 const statusColors = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -101,7 +93,7 @@ const priorityColors = {
 
 // Dynamic category labels will be loaded from API
 
-export default function ExpenseManagement({}: ExpenseManagementProps) {
+export default function ExpenseManagement() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);

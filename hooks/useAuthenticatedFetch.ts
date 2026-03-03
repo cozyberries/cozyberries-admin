@@ -95,7 +95,7 @@ export function useAuthenticatedFetch() {
   const post = useCallback(
     (
       url: string,
-      data?: any,
+      data?: unknown,
       options: Omit<FetchOptions, "method" | "body"> = {}
     ) => {
       return authenticatedFetch(url, {
@@ -110,7 +110,7 @@ export function useAuthenticatedFetch() {
   const put = useCallback(
     (
       url: string,
-      data?: any,
+      data?: unknown,
       options: Omit<FetchOptions, "method" | "body"> = {}
     ) => {
       return authenticatedFetch(url, {
@@ -125,7 +125,7 @@ export function useAuthenticatedFetch() {
   const patch = useCallback(
     (
       url: string,
-      data?: any,
+      data?: unknown,
       options: Omit<FetchOptions, "method" | "body"> = {}
     ) => {
       return authenticatedFetch(url, {

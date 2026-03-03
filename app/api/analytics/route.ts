@@ -21,8 +21,6 @@ export async function GET(request: NextRequest) {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const startOfMonth = new Date(currentYear, currentMonth, 1);
-    const startOfLastMonth = new Date(currentYear, currentMonth - 1, 1);
-    const endOfLastMonth = new Date(currentYear, currentMonth, 0);
 
     // Fetch total orders
     const { count: totalOrders } = await supabase

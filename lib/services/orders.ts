@@ -165,7 +165,7 @@ class OrderService {
     gateway_provider: string;
     amount: number;
     currency?: string;
-    gateway_response?: Record<string, any>;
+    gateway_response?: Record<string, unknown>;
   }): Promise<Payment> {
     try {
       const headers = await this.getHeaders();
@@ -195,7 +195,7 @@ class OrderService {
     paymentId: string,
     updates: {
       status?: string;
-      gateway_response?: Record<string, any>;
+      gateway_response?: Record<string, unknown>;
       failure_reason?: string;
       card_last_four?: string;
       card_brand?: string;

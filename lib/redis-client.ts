@@ -12,7 +12,7 @@ class DirectRedisClient {
     this.token = token;
   }
 
-  private async makeRequest(command: string[], body?: any) {
+  private async makeRequest(command: string[]) {
     try {
       // Upstash Redis REST API expects commands in the body, not in the URL
       const response = await fetch(this.url, {

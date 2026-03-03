@@ -23,8 +23,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
-  signIn: (identifier: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<{ success: boolean; error?: any }>;
+  signIn: (identifier: string, password: string) => Promise<{ error: { message: string } | null }>;
+  signOut: () => Promise<{ success: boolean; error?: { message: string } }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

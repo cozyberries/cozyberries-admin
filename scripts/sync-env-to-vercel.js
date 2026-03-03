@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unused-vars */
 /**
  * Sync env vars from .env.local to Vercel (preview + production).
  * Skips VERCEL_OIDC_TOKEN (set by Vercel). Uses temp files to avoid shell history.

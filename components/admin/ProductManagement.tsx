@@ -6,14 +6,12 @@ import {
   Search,
   Edit,
   Trash2,
-  Eye,
-  Filter,
   MoreHorizontal,
   Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -89,7 +87,7 @@ export default function ProductManagement() {
     }
   };
 
-  const handleFormSubmit = async (productData: any) => {
+  const handleFormSubmit = async (productData: Product | Record<string, unknown>) => {
     try {
       const url = editingProduct
         ? `/api/products/${editingProduct.id}`
@@ -97,13 +95,12 @@ export default function ProductManagement() {
 
       const method = editingProduct ? "PUT" : "POST";
 
-      let changedFields: string[] = [];
+      const changedFields: string[] = [];
       if (editingProduct) {
-        for (const key in productData) {
-          if (
-            productData[key] !== undefined &&
-            productData[key] !== (editingProduct as any)[key]
-          ) {
+        const data = productData as Record<string, unknown>;
+        const existing = editingProduct as unknown as Record<string, unknown>;
+        for (const key in data) {
+          if (data[key] !== undefined && data[key] !== existing[key]) {
             changedFields.push(key);
           }
         }
@@ -122,7 +119,7 @@ export default function ProductManagement() {
         setShowForm(false);
         setEditingProduct(null);
         fetchProducts(); // Refresh the list
-        let title = editingProduct ? "Updated Product" : "Created Product";
+        const title = editingProduct ? "Updated Product" : "Created Product";
         let message = editingProduct
           ? `Product ${productData.name || editingProduct.name} has been updated.`
           : `New product ${productData.name} has been created.`;

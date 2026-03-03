@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User } from "@supabase/supabase-js";
 import { validatePhoneNumber, validateFullName } from "@/lib/utils/validation";
 
 interface UserProfile {
@@ -31,7 +30,7 @@ interface UserAddress {
   updated_at: string;
 }
 
-export function useProfile(user: any) {
+export function useProfile(user: { id: string } | null) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,8 +49,20 @@ export function useProfile(user: any) {
     phone: "",
   });
 
-  const [addressData, setAddressData] = useState({
-    address_type: "home" as const,
+  const [addressData, setAddressData] = useState<{
+    address_type: string;
+    label: string;
+    full_name: string;
+    phone: string;
+    address_line_1: string;
+    address_line_2: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+    is_default: boolean;
+  }>({
+    address_type: "home",
     label: "",
     full_name: "",
     phone: "",
@@ -368,7 +379,7 @@ export function useProfile(user: any) {
       });
 
       if (response.ok) {
-        const updatedAddress = await response.json();
+        await response.json();
         setAddresses((prev) =>
           prev.map((addr) => ({
             ...addr,
@@ -388,7 +399,7 @@ export function useProfile(user: any) {
   const handleEditAddress = (address: UserAddress) => {
     setEditingAddress(address.id);
     setAddressData({
-      address_type: address.address_type as any,
+      address_type: address.address_type,
       label: address.label || "",
       full_name: address.full_name || "",
       phone: address.phone || "",

@@ -52,7 +52,7 @@ export async function logout(page: Page): Promise<void> {
       await userMenuButton.click();
       await signOutButton.click();
     }
-  } catch (error) {
+  } catch {
     // If we can't find the sign out button, look for any button/link with sign out text
     await page.locator('text=/sign out|logout/i').first().click();
   }

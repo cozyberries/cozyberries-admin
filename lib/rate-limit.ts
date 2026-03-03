@@ -1,21 +1,19 @@
 import { Redis } from '@upstash/redis';
 
-function getRedisClient(): Redis {
+function getRedisClient(): Redis | null {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
-    throw new Error(
-      'Missing required environment variables: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set'
-    );
+    return null;
   }
 
   return new Redis({ url, token });
 }
 
 let _redis: Redis | null = null;
-function redis(): Redis {
-  if (!_redis) _redis = getRedisClient();
+function redis(): Redis | null {
+  if (_redis === null) _redis = getRedisClient();
   return _redis;
 }
 
@@ -36,17 +34,21 @@ export async function checkRateLimit(
   maxAttempts: number,
   windowSeconds: number
 ): Promise<RateLimitResult> {
+  const client = redis();
+  if (!client) {
+    return { allowed: true, remaining: maxAttempts };
+  }
   try {
     const windowKey = `ratelimit:${key}`;
 
     // Atomic pipeline: INCR + EXPIRE together to avoid race condition
-    const pipeline = redis().pipeline();
+    const pipeline = client.pipeline();
     pipeline.incr(windowKey);
     pipeline.expire(windowKey, windowSeconds);
     const [count] = await pipeline.exec<[number, number]>();
 
     if (count > maxAttempts) {
-      const ttl = await redis().ttl(windowKey);
+      const ttl = await client.ttl(windowKey);
       return {
         allowed: false,
         remaining: 0,
@@ -69,8 +71,10 @@ export async function checkRateLimit(
  * Reset rate limit counter for a key (e.g., on successful login).
  */
 export async function resetRateLimit(key: string): Promise<void> {
+  const client = redis();
+  if (!client) return;
   try {
-    await redis().del(`ratelimit:${key}`);
+    await client.del(`ratelimit:${key}`);
   } catch (error) {
     console.error('Rate limit reset failed:', error);
   }

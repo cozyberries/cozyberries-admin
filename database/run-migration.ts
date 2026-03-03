@@ -70,16 +70,16 @@ async function runMigration() {
 
     await client.query('COMMIT');
     console.log('Migration executed successfully!');
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (transactionStarted) {
       try {
         await client.query('ROLLBACK');
         console.log('Transaction rolled back');
-      } catch (rollbackErr: any) {
-        console.error('Rollback failed:', rollbackErr.message || rollbackErr);
+      } catch (rollbackErr: unknown) {
+        console.error('Rollback failed:', rollbackErr instanceof Error ? rollbackErr.message : rollbackErr);
       }
     }
-    console.error('Migration failed:', err.message || err);
+    console.error('Migration failed:', err instanceof Error ? err.message : err);
     process.exit(1);
   } finally {
     await client.end();

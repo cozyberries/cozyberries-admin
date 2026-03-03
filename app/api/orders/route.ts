@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch payments for all orders
     const orderIds = orders?.map((order) => order.id) || [];
-    let paymentsMap: Record<string, any[]> = {};
+    const paymentsMap: Record<string, unknown[]> = {};
     
     if (orderIds.length > 0) {
       const { data: payments, error: paymentsError } = await supabase

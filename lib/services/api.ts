@@ -1,5 +1,4 @@
 import axios from "axios";
-import { normalizeProduct } from "@/lib/utils/product";
 // ---------- Types ----------
 export interface ProductVariant {
   id: string;
@@ -288,23 +287,23 @@ export const getProductById = async (id: string): Promise<Product | null> => {
     // Handle images as strings (new format) or objects (old format)
     const images: string[] =
       data.images
-        ?.map((img: any) => {
+        ?.map((img: unknown) => {
           if (typeof img === "string") {
             return img;
-          } else if (img && typeof img === "object") {
-            return img.url || `/${img.storage_path}`;
+          } else if (img && typeof img === "object" && "url" in img && "storage_path" in img) {
+            return (img as { url?: string; storage_path: string }).url || `/${(img as { storage_path: string }).storage_path}`;
           }
           return "";
         })
         .filter((url: string) => url && url.trim() !== "") || [];
 
-    const variants: ProductVariant[] = (data.variants || []).map((v: any) => ({
-      id: v.id,
-      sku: v.sku,
-      price: v.price,
-      stock_quantity: v.stock_quantity,
-      size: v.size,
-      color: v.color,
+    const variants: ProductVariant[] = (data.variants || []).map((v: Record<string, unknown>) => ({
+      id: v.id as string,
+      sku: v.sku as string,
+      price: v.price as number,
+      stock_quantity: v.stock_quantity as number,
+      size: v.size as string,
+      color: v.color as string,
     }));
 
     return {
@@ -313,13 +312,13 @@ export const getProductById = async (id: string): Promise<Product | null> => {
       colors: [...new Set(variants.map((v) => v.color).filter(Boolean))],
       sizes: [...new Set(variants.map((v) => v.size).filter(Boolean))],
       variants,
-      features: (data.features || []).map((f: any) => f.feature || f),
-      relatedProducts: (data.relatedProducts || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        category: p.category,
-        image: p.images?.[0] || p.image || "/placeholder.jpg",
+      features: (data.features || []).map((f: Record<string, unknown>) => (f.feature ?? f) as string),
+      relatedProducts: (data.relatedProducts || []).map((p: Record<string, unknown>) => ({
+        id: p.id as string,
+        name: p.name as string,
+        price: p.price as number,
+        category: p.category as string,
+        image: ((p.images as string[])?.[0] ?? p.image ?? "/placeholder.jpg") as string,
       })),
     };
   } catch {

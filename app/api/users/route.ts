@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-server";
-import { authenticateRequest, isAdminUser } from "@/lib/jwt-auth";
+import { authenticateRequest } from "@/lib/jwt-auth";
 
 export async function GET(request: NextRequest) {
   try {

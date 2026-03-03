@@ -32,7 +32,7 @@ export async function PUT(
     const { id: productId } = await params;
 
     // Prepare update data
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
 
     if (body.name !== undefined) {
       updateData.name = body.name;
@@ -97,7 +97,7 @@ export async function PUT(
     }
 
     return NextResponse.json(data);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -158,7 +158,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ message: "Product deleted successfully" });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

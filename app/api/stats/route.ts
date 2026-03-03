@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Get payment statistics
-    const { data: paymentStats, error: paymentStatsError } = await supabase
+    const { data: paymentStats } = await supabase
       .from("payments")
       .select("status, amount, created_at")
       .gte(

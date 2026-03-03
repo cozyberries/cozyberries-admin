@@ -32,7 +32,7 @@ export async function proxy(request: NextRequest) {
         }
 
         return NextResponse.next({ request });
-    } catch (error) {
+    } catch {
         // Invalid/expired token - redirect to login and clear the bad cookie
         const redirectPath = encodeURIComponent(request.nextUrl.pathname);
         const response = NextResponse.redirect(

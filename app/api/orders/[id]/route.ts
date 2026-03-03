@@ -60,7 +60,7 @@ export async function PUT(
     }
 
     return NextResponse.json(data);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -124,7 +124,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: "Order deleted successfully" });
 
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

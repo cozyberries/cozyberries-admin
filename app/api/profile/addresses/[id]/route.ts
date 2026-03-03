@@ -35,7 +35,7 @@ export async function PUT(
 
     // Whitelist permitted fields to prevent mass-assignment
     const allowedFields = ["street", "city", "state", "zip", "country", "phone", "address_line_1", "address_line_2", "postal_code", "address_type", "label", "full_name", "is_default"];
-    const sanitizedUpdate: Record<string, any> = {
+    const sanitizedUpdate: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
@@ -49,7 +49,7 @@ export async function PUT(
     // If setting this address as default, use atomic RPC to ensure single default
     if (body.is_default === true) {
       // Remove is_default from sanitizedUpdate since RPC handles it atomically
-      const { is_default: _is_default, ...updateWithoutDefault } = sanitizedUpdate;
+      const { is_default: _, ...updateWithoutDefault } = sanitizedUpdate;
       
       // Call RPC to atomically clear other defaults AND set this address as default
       const { error: rpcError } = await supabase.rpc('ensure_single_default_address', {

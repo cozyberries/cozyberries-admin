@@ -40,6 +40,7 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
   }, [get]);
 
   const fetchUsers = async () => {

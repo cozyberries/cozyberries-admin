@@ -4,11 +4,7 @@ import {
   createAdminSupabaseClient,
 } from "@/lib/supabase-server";
 import { authenticateRequest } from "@/lib/jwt-auth";
-import {
-  ExpenseCreate,
-  ExpenseFilters,
-  ExpenseStats,
-} from "@/lib/types/expense";
+import { ExpenseCreate } from "@/lib/types/expense";
 
 export async function GET(request: NextRequest) {
   try {
@@ -100,7 +96,7 @@ export async function GET(request: NextRequest) {
       const categoryIds = [...new Set(expenses.map((expense) => expense.category_id).filter(Boolean))];
       
       // Fetch category data if there are any category IDs
-      let categoriesMap: Record<string, any> = {};
+      let categoriesMap: Record<string, unknown> = {};
       if (categoryIds.length > 0) {
         try {
           const { data: categories, error: categoryError } = await supabase
@@ -114,7 +110,7 @@ export async function GET(request: NextRequest) {
             categoriesMap = categories.reduce((acc, cat) => {
               acc[cat.id] = cat;
               return acc;
-            }, {} as Record<string, any>);
+            }, {} as Record<string, unknown>);
           }
         } catch (error) {
           console.error("Error fetching category data:", error);

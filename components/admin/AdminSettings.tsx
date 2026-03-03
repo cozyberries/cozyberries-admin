@@ -55,7 +55,7 @@ export default function AdminSettings() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       alert('Settings saved successfully!');
-    } catch (error) {
+    } catch {
       alert('Failed to save settings');
     } finally {
       setLoading(false);
@@ -67,7 +67,7 @@ export default function AdminSettings() {
     alert('Settings refreshed from server');
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     setSettings(prev => ({
       ...prev,
       [field]: value

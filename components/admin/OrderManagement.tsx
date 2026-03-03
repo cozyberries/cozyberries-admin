@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import {
   Search,
-  Calendar,
   Package,
   MoreHorizontal,
   Eye,
@@ -26,7 +25,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Select,
@@ -69,6 +67,7 @@ export default function OrderManagement() {
 
   useEffect(() => {
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fromDate, toDate, statusFilter trigger refetch
   }, [fromDate, toDate, statusFilter]);
 
   const fetchOrders = async () => {

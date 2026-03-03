@@ -79,7 +79,7 @@ export interface OrderBase {
   notes?: string;
 }
 
-export interface OrderCreate extends OrderBase {}
+export type OrderCreate = OrderBase;
 
 export interface Order extends OrderBase {
   id: string;
@@ -105,7 +105,7 @@ export interface PaymentBase {
 }
 
 export interface PaymentCreate extends PaymentBase {
-  gateway_response?: Record<string, any>;
+  gateway_response?: Record<string, unknown>;
 }
 
 export interface Payment extends PaymentBase {
@@ -116,7 +116,7 @@ export interface Payment extends PaymentBase {
   refunded_amount?: number;
   refund_reference?: string;
   refund_reason?: string;
-  gateway_response?: Record<string, any>;
+  gateway_response?: Record<string, unknown>;
   card_last_four?: string;
   card_brand?: string;
   card_type?: string;

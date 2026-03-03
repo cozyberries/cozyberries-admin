@@ -31,9 +31,7 @@ import { ExpenseSummary } from "@/lib/types/expense";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
 import { toast } from "sonner";
 
-interface ExpenseAnalyticsProps {}
-
-export default function ExpenseAnalytics({}: ExpenseAnalyticsProps) {
+export default function ExpenseAnalytics() {
   const [summary, setSummary] = useState<ExpenseSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState("6months");
@@ -61,6 +59,7 @@ export default function ExpenseAnalytics({}: ExpenseAnalyticsProps) {
 
   useEffect(() => {
     fetchSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSummary is stable, selectedPeriod triggers refetch
   }, [selectedPeriod]);
 
   const formatCurrency = (amount: number) => {
@@ -112,7 +111,7 @@ export default function ExpenseAnalytics({}: ExpenseAnalyticsProps) {
   }
 
   const growthRate = calculateGrowthRate();
-  const topCategory = getTopCategory();
+  const _topCategory = getTopCategory();
 
   return (
     <div className="space-y-6">

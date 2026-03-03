@@ -130,7 +130,7 @@ export class MonitoredCache {
   /**
    * Get from cache with monitoring
    */
-  static async get(key: string, getCacheValue: () => Promise<any>): Promise<{ value: any; wasHit: boolean; responseTime: number }> {
+  static async get(key: string, getCacheValue: () => Promise<unknown>): Promise<{ value: unknown; wasHit: boolean; responseTime: number }> {
     const timer = new PerformanceTimer(`Cache GET ${key}`);
     
     try {
@@ -167,7 +167,7 @@ export class MonitoredCache {
   /**
    * Set cache with monitoring
    */
-  static async set(key: string, value: any, setCacheValue: (value: any) => Promise<boolean>): Promise<boolean> {
+  static async set(key: string, value: unknown, setCacheValue: (value: unknown) => Promise<boolean>): Promise<boolean> {
     const timer = new PerformanceTimer(`Cache SET ${key}`);
     
     try {

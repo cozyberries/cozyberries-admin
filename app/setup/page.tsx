@@ -36,7 +36,7 @@ export default function AdminSetupPage() {
         } else {
           setError("Failed to check setup status");
         }
-      } catch (err) {
+      } catch {
         setError("Failed to check setup status");
       } finally {
         setCheckingStatus(false);
@@ -112,7 +112,7 @@ export default function AdminSetupPage() {
       } else {
         setError(data.error || "Failed to create admin user");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to create admin user");
     } finally {
       setLoading(false);

@@ -4,10 +4,7 @@ import {
   createAdminSupabaseClient,
 } from "@/lib/supabase-server";
 import { authenticateRequest } from "@/lib/jwt-auth";
-import {
-  ExpenseCategoryCreate,
-  ExpenseCategoryData,
-} from "@/lib/types/expense";
+import { ExpenseCategoryCreate } from "@/lib/types/expense";
 
 export async function GET(request: NextRequest) {
   try {

@@ -11,4 +11,4 @@ export interface Rating extends RatingBase {
     created_at: string;
 }
 
-export interface RatingCreate extends Omit<RatingBase, "id"> { }
+export type RatingCreate = Omit<RatingBase, "id">;

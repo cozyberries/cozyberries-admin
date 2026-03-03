@@ -28,7 +28,6 @@ import {
   Shield,
   AlertTriangle,
   Loader2,
-  Plus,
   BarChart3,
   List,
 } from "lucide-react";
@@ -81,7 +80,7 @@ export default function AdminExpensesPage() {
               Access Denied
             </CardTitle>
             <CardDescription>
-              You don't have permission to access expense management
+              You don&apos;t have permission to access expense management
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

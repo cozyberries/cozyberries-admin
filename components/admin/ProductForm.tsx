@@ -14,7 +14,7 @@ import Image from "next/image";
 
 interface ProductFormProps {
   product?: Product | null;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: Product | Record<string, unknown>) => void;
   onCancel: () => void;
 }
 
@@ -118,7 +118,7 @@ export default function ProductForm({
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
