@@ -35,11 +35,12 @@ export async function GET(request: NextRequest) {
       .from("orders")
       .select("*", { count: "exact", head: true });
 
-    const { data: revenueRows } = await supabase
+    const { data: revenueAgg } = await supabase
       .from("orders")
-      .select("total_amount")
+      .select("total_amount.sum()")
       .in("status", REVENUE_STATUSES);
-    const totalRevenue = revenueRows?.reduce((sum, o) => sum + (o.total_amount ?? 0), 0) ?? 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const totalRevenue = Number((revenueAgg as any)?.[0]?.sum ?? 0);
 
     const { count: pendingOrders } = await supabase
       .from("orders")
@@ -65,9 +66,10 @@ export async function GET(request: NextRequest) {
     // ── Users — paginated to handle > 1,000 users ─────────────────────────────
     const firstPage = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const allUsers = [...(firstPage.data?.users ?? [])];
+    const MAX_PAGES = 100;
     if ((firstPage.data?.users?.length ?? 0) >= 1000) {
       let page = 2;
-      while (true) {
+      while (page <= MAX_PAGES) {
         const { data: pageData, error: pageError } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
         if (pageError || !pageData?.users?.length) break;
         allUsers.push(...pageData.users);
@@ -77,7 +79,8 @@ export async function GET(request: NextRequest) {
     }
 
     const totalUsers = allUsers.length;
-    const monthlyUsers = allUsers.filter((u) => u.created_at >= startOfMonth).length;
+    const startOfMonthMs = Date.parse(startOfMonth);
+    const monthlyUsers = allUsers.filter((u) => Date.parse(u.created_at) >= startOfMonthMs).length;
 
     // ── Chart data: last 6 months ─────────────────────────────────────────────
     const chartData = [];
