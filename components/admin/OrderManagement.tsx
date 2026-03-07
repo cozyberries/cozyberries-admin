@@ -352,7 +352,7 @@ function OrderDetailModal({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.name}</p>
                     <p className="text-xs text-gray-500 uppercase">
-                      Size: {item.size ?? item.product_details?.size ?? item.product_details?.size_slug ?? "—"} · Color: {item.color ?? item.product_details?.color ?? item.product_details?.color_slug ?? "—"}
+                      Size: {item.size ?? item.product_details?.size ?? "—"} · Color: {item.color ?? item.product_details?.color ?? "—"}
                     </p>
                     <p className="text-xs text-gray-500">Qty {item.quantity} × {fmt(item.price)}</p>
                   </div>
@@ -531,13 +531,11 @@ export default function OrderManagement() {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, fromDate, toDate]);
+  }, [statusFilter, fromDate, toDate, get]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter, fromDate, toDate]);
+  }, [fetchOrders]);
 
   // Fetch users once when the filter panel opens
   useEffect(() => {
