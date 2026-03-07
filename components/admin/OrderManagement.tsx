@@ -209,15 +209,15 @@ function OrderDetailModal({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
-      <div className="bg-white w-full sm:max-w-2xl sm:rounded-lg shadow-xl max-h-[92vh] sm:max-h-[90vh] flex flex-col">
-        {/* Header */}
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white w-full max-w-2xl h-full sm:h-auto sm:max-h-[90vh] sm:rounded-lg shadow-xl flex flex-col">
+        {/* Header — mobile-first: compact, order number doesn't wrap awkwardly */}
         <div className="px-4 py-3 border-b shrink-0">
-          <div className="flex items-start justify-between gap-2">
-            <h2 className="text-base font-semibold break-all leading-snug">
+          <div className="flex items-center justify-between gap-3 min-w-0">
+            <h2 className="text-base font-semibold truncate min-w-0" title={order.order_number || order.id}>
               Order #{order.order_number || order.id}
             </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 shrink-0 -mt-0.5 -mr-1">
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2 shrink-0 -mr-1 touch-manipulation" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -258,8 +258,8 @@ function OrderDetailModal({
           </div>
         </div>
 
-        {/* Body */}
-        <div className="overflow-y-auto flex-1 px-4 py-4 space-y-5">
+        {/* Body — scrollable; extra padding at bottom so summary + Total stay above nav */}
+        <div className="overflow-y-auto flex-1 px-4 py-4 pb-24 space-y-5">
           {/* Customer + Address */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -351,6 +351,9 @@ function OrderDetailModal({
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.name}</p>
+                    <p className="text-xs text-gray-500 uppercase">
+                      Size: {(item as Record<string, unknown>).size as string ?? item.product_details?.size ?? item.product_details?.size_slug ?? "—"} · Color: {(item as Record<string, unknown>).color as string ?? item.product_details?.color ?? item.product_details?.color_slug ?? "—"}
+                    </p>
                     <p className="text-xs text-gray-500">Qty {item.quantity} × {fmt(item.price)}</p>
                   </div>
                   <p className="text-sm font-semibold shrink-0">{fmt(item.price * item.quantity)}</p>
@@ -359,12 +362,15 @@ function OrderDetailModal({
             </div>
           </div>
 
-          {/* Summary */}
+          {/* Summary — Total emphasized and always visible above bottom nav */}
           <div className="bg-gray-50 rounded-lg px-4 py-3 space-y-1.5 text-sm">
             <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(order.subtotal)}</span></div>
             <div className="flex justify-between text-gray-500"><span>Delivery</span><span>{fmt(order.delivery_charge)}</span></div>
             {order.tax_amount > 0 && <div className="flex justify-between text-gray-500"><span>Tax</span><span>{fmt(order.tax_amount)}</span></div>}
-            <div className="flex justify-between font-semibold border-t pt-1.5"><span>Total</span><span>{fmt(order.total_amount)}</span></div>
+            <div className="flex justify-between items-baseline border-t border-gray-200 pt-3 mt-2">
+              <span className="font-semibold text-foreground">Total</span>
+              <span className="text-lg font-bold text-foreground">{fmt(order.total_amount)}</span>
+            </div>
           </div>
 
           {/* Payments */}
@@ -863,22 +869,15 @@ export default function OrderManagement() {
                         </DropdownMenuItem>
                       </>
                     )}
+                    <DropdownMenuSeparator />
                     {(order.status === "payment_pending" || order.status === "payment_confirmed" || order.status === "processing") && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, "cancelled")} className="text-red-600">
-                          <XCircle className="h-4 w-4 mr-2" />Cancel Order
-                        </DropdownMenuItem>
-                      </>
+                      <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, "cancelled")} className="text-red-600">
+                        <XCircle className="h-4 w-4 mr-2" />Cancel Order
+                      </DropdownMenuItem>
                     )}
-                    {(order.status === "cancelled" || order.status === "refunded") && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleDeleteOrder(order.id)} className="text-red-600">
-                          <XCircle className="h-4 w-4 mr-2" />Delete Order
-                        </DropdownMenuItem>
-                      </>
-                    )}
+                    <DropdownMenuItem onClick={() => handleDeleteOrder(order.id)} className="text-red-600">
+                      <XCircle className="h-4 w-4 mr-2" />Delete Order
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
