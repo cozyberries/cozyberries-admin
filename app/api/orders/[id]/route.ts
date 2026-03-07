@@ -38,10 +38,70 @@ export async function GET(
     }
 
     // Fetch order items
-    const { data: orderItems } = await supabase
+    const { data: rawItems } = await supabase
       .from("order_items")
       .select("*")
       .eq("order_id", orderId);
+
+    const orderItems = rawItems || [];
+
+    // Enrich size/color from product variants when product_details is missing
+    const productIdsToEnrich = [
+      ...new Set(
+        orderItems
+          .filter(
+            (item: { product_id?: string | null; product_details?: { size?: string; color?: string } | null }) =>
+              item.product_id && (!item.product_details?.size || !item.product_details?.color)
+          )
+          .map((item: { product_id: string }) => item.product_id)
+      ),
+    ] as string[];
+
+    let variantsByProductId: Record<string, { size_slug: string; color_slug: string }> = {};
+    if (productIdsToEnrich.length > 0) {
+      const { data: products } = await supabase
+        .from("products")
+        .select("id, slug")
+        .in("id", productIdsToEnrich);
+      const slugs = (products || []).map((p: { slug: string }) => p.slug);
+      if (slugs.length > 0) {
+        const { data: variants } = await supabase
+          .from("product_variants")
+          .select("product_slug, size_slug, color_slug")
+          .in("product_slug", slugs);
+        const slugById: Record<string, string> = {};
+        (products || []).forEach((p: { id: string; slug: string }) => {
+          slugById[p.id] = p.slug;
+        });
+        const variantsBySlug: Record<string, { size_slug: string; color_slug: string }[]> = {};
+        (variants || []).forEach((v: { product_slug: string; size_slug: string; color_slug: string }) => {
+          if (!variantsBySlug[v.product_slug]) variantsBySlug[v.product_slug] = [];
+          variantsBySlug[v.product_slug].push({ size_slug: v.size_slug, color_slug: v.color_slug });
+        });
+        Object.keys(slugById).forEach((id) => {
+          const list = variantsBySlug[slugById[id]];
+          if (list?.length === 1) {
+            variantsByProductId[id] = list[0];
+          }
+        });
+      }
+    }
+
+    const items = orderItems.map((item: { product_id?: string | null; product_details?: Record<string, unknown> | null; [key: string]: unknown }) => {
+      const enriched = variantsByProductId[item.product_id as string];
+      if (!enriched) return item;
+      const existing = item.product_details && typeof item.product_details === "object" ? item.product_details : {};
+      const existingSize = existing.size ?? existing.size_slug;
+      const existingColor = existing.color ?? existing.color_slug;
+      return {
+        ...item,
+        product_details: {
+          ...existing,
+          size: (existingSize as string) || enriched.size_slug,
+          color: (existingColor as string) || enriched.color_slug,
+        },
+      };
+    });
 
     // Fetch associated payments
     const { data: payments } = await supabase
@@ -50,7 +110,7 @@ export async function GET(
       .eq("order_id", orderId)
       .order("created_at", { ascending: false });
 
-    return NextResponse.json({ ...order, items: orderItems || [], payments: payments || [] });
+    return NextResponse.json({ ...order, items, payments: payments || [] });
   } catch (err) {
     console.error("GET /api/orders/[id] error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -163,12 +223,57 @@ export async function DELETE(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    // Delete child records first
+    // TODO: Consider implementing database-level ON DELETE CASCADE constraints
+    // for checkout_sessions, order_items, and payments tables to ensure atomic
+    // deletion without risk of orphaned records if an intermediate step fails.
+    // Current sequential deletes provide order but not transactional guarantees.
+    const { error: checkoutError } = await supabase
+      .from("checkout_sessions")
+      .delete()
+      .eq("order_id", orderId);
+
+    if (checkoutError) {
+      console.error("DELETE checkout_sessions error:", checkoutError);
+      return NextResponse.json(
+        { error: `Failed to delete checkout sessions: ${checkoutError.message}` },
+        { status: 500 }
+      );
+    }
+
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .delete()
+      .eq("order_id", orderId);
+
+    if (itemsError) {
+      console.error("DELETE order_items error:", itemsError);
+      return NextResponse.json(
+        { error: `Failed to delete order items: ${itemsError.message}` },
+        { status: 500 }
+      );
+    }
+
+    const { error: paymentsError } = await supabase
+      .from("payments")
+      .delete()
+      .eq("order_id", orderId);
+
+    if (paymentsError) {
+      console.error("DELETE payments error:", paymentsError);
+      return NextResponse.json(
+        { error: `Failed to delete payments: ${paymentsError.message}` },
+        { status: 500 }
+      );
+    }
+
     const { error: deleteError } = await supabase
       .from("orders")
       .delete()
       .eq("id", orderId);
 
     if (deleteError) {
+      console.error("DELETE orders error:", deleteError);
       return NextResponse.json(
         { error: `Failed to delete order: ${deleteError.message}` },
         { status: 500 }
