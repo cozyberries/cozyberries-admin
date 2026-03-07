@@ -55,6 +55,8 @@ export interface OrderItem {
   price: number;
   quantity: number;
   image?: string;
+  size?: string;
+  color?: string;
   // Additional product details can be stored here
   product_details?: {
     sku?: string;

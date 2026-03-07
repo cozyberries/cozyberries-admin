@@ -352,7 +352,7 @@ function OrderDetailModal({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.name}</p>
                     <p className="text-xs text-gray-500 uppercase">
-                      Size: {(item as Record<string, unknown>).size as string ?? item.product_details?.size ?? item.product_details?.size_slug ?? "—"} · Color: {(item as Record<string, unknown>).color as string ?? item.product_details?.color ?? item.product_details?.color_slug ?? "—"}
+                      Size: {item.size ?? item.product_details?.size ?? item.product_details?.size_slug ?? "—"} · Color: {item.color ?? item.product_details?.color ?? item.product_details?.color_slug ?? "—"}
                     </p>
                     <p className="text-xs text-gray-500">Qty {item.quantity} × {fmt(item.price)}</p>
                   </div>
@@ -871,11 +871,13 @@ export default function OrderManagement() {
                         </DropdownMenuItem>
                       </>
                     )}
-                    <DropdownMenuSeparator />
                     {(order.status === "payment_pending" || order.status === "payment_confirmed" || order.status === "processing") && (
-                      <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, "cancelled")} className="text-red-600">
-                        <XCircle className="h-4 w-4 mr-2" />Cancel Order
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, "cancelled")} className="text-red-600">
+                          <XCircle className="h-4 w-4 mr-2" />Cancel Order
+                        </DropdownMenuItem>
+                      </>
                     )}
                     <DropdownMenuItem onClick={() => handleDeleteOrder(order.id)} className="text-red-600">
                       <XCircle className="h-4 w-4 mr-2" />Delete Order

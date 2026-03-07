@@ -55,7 +55,7 @@ export async function GET(
           )
           .map((item: { product_id: string }) => item.product_id)
       ),
-    ].filter(Boolean) as string[];
+    ] as string[];
 
     let variantsByProductId: Record<string, { size_slug: string; color_slug: string }> = {};
     if (productIdsToEnrich.length > 0) {
@@ -224,6 +224,10 @@ export async function DELETE(
     }
 
     // Delete child records first
+    // TODO: Consider implementing database-level ON DELETE CASCADE constraints
+    // for checkout_sessions, order_items, and payments tables to ensure atomic
+    // deletion without risk of orphaned records if an intermediate step fails.
+    // Current sequential deletes provide order but not transactional guarantees.
     const { error: checkoutError } = await supabase
       .from("checkout_sessions")
       .delete()
