@@ -531,11 +531,12 @@ export default function OrderManagement() {
     } finally {
       setLoading(false);
     }
-  }, [get, statusFilter, fromDate, toDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, fromDate, toDate]);
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter, fromDate, toDate, get]);
+  }, [fetchOrders]);
 
   // Fetch users once when the filter panel opens
   useEffect(() => {
