@@ -535,7 +535,7 @@ export default function OrderManagement() {
 
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+  }, [statusFilter, fromDate, toDate, get]);
 
   // Fetch users once when the filter panel opens
   useEffect(() => {
