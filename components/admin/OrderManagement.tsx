@@ -21,6 +21,9 @@ import {
   SlidersHorizontal,
   Banknote,
   Pencil,
+  Download,
+  Send,
+  Ban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,11 +148,19 @@ function OrderDetailModal({
   onClose,
   onStatusChange,
   onUpdateTracking,
+  onCreateDelhivery,
+  onCancelDelhivery,
+  onDownloadLabel,
+  delhiveryBusy,
 }: {
   order: OrderWithPayments;
   onClose: () => void;
   onStatusChange: (orderId: string, status: OrderStatus) => Promise<void>;
   onUpdateTracking: (orderId: string, data: Record<string, string>) => Promise<void>;
+  onCreateDelhivery?: (orderId: string) => Promise<void>;
+  onCancelDelhivery?: (orderId: string) => void;
+  onDownloadLabel?: (orderId: string, orderNumber?: string) => void;
+  delhiveryBusy?: boolean;
 }) {
   const [editingTracking, setEditingTracking] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState(order.tracking_number || "");
@@ -333,6 +344,48 @@ function OrderDetailModal({
                 )}
               </div>
             )}
+
+            {/* Delhivery actions */}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {order.tracking_number && order.carrier_name === "Delhivery" ? (
+                <>
+                  {onDownloadLabel && !["cancelled", "delivered", "refunded"].includes(order.status) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onDownloadLabel(order.id, order.order_number)}
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      Print Label
+                    </Button>
+                  )}
+                  {onCancelDelhivery && !["cancelled", "delivered", "refunded"].includes(order.status) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() => onCancelDelhivery(order.id)}
+                      disabled={delhiveryBusy}
+                    >
+                      <Ban className="h-3 w-3 mr-1" />Cancel Shipment
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {onCreateDelhivery && ["payment_confirmed", "processing"].includes(order.status) && (
+                    <Button
+                      size="sm"
+                      onClick={() => onCreateDelhivery(order.id)}
+                      disabled={delhiveryBusy}
+                    >
+                      {delhiveryBusy ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+                      Create Delhivery Shipment
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Items */}
@@ -511,7 +564,7 @@ export default function OrderManagement() {
   const [userFilter, setUserFilter] = useState<string>("");
   const [users, setUsers] = useState<{ id: string; email?: string; full_name?: string }[]>([]);
 
-  const { get, put, delete: del } = useAuthenticatedFetch();
+  const { get, post, patch, put, delete: del } = useAuthenticatedFetch();
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -603,6 +656,65 @@ export default function OrderManagement() {
     }
   };
 
+  // ── Delhivery actions ─────────────────────────────────────────────────────
+  const [delhiveryLoading, setDelhiveryLoading] = useState<string | null>(null);
+  const [cancelShipmentConfirm, setCancelShipmentConfirm] = useState<string | null>(null);
+
+  const isDelhiveryOrder = (o: OrderWithPayments) =>
+    !!o.tracking_number && o.carrier_name === "Delhivery";
+
+  const handleCreateDelhiveryShipment = async (orderId: string) => {
+    setDelhiveryLoading(orderId);
+    try {
+      const res = await post(`/api/orders/${orderId}/shipment`, {}, { requireAdmin: true });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create shipment");
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? { ...o, tracking_number: data.waybill, carrier_name: "Delhivery", status: "processing" as OrderStatus }
+            : o
+        )
+      );
+      setDetailOrder((prev) =>
+        prev?.id === orderId
+          ? { ...prev, tracking_number: data.waybill, carrier_name: "Delhivery", status: "processing" as OrderStatus }
+          : prev
+      );
+      toast.success(`Shipment created — Waybill: ${data.waybill}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create Delhivery shipment");
+    } finally {
+      setDelhiveryLoading(null);
+    }
+  };
+
+  const handleCancelDelhiveryShipment = async (orderId: string) => {
+    setDelhiveryLoading(orderId);
+    try {
+      const res = await post(`/api/orders/${orderId}/shipment/cancel`, {}, { requireAdmin: true });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to cancel shipment");
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" as OrderStatus } : o))
+      );
+      setDetailOrder((prev) =>
+        prev?.id === orderId ? { ...prev, status: "cancelled" as OrderStatus } : prev
+      );
+      toast.success(data.remark || "Shipment cancelled");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel Delhivery shipment");
+    } finally {
+      setDelhiveryLoading(null);
+      setCancelShipmentConfirm(null);
+    }
+  };
+
+  const handleDownloadLabel = (orderId: string, orderNumber?: string) => {
+    const pathParam = orderNumber ?? orderId;
+    window.open(`/print/label/${encodeURIComponent(pathParam)}`, "_blank");
+  };
+
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case "payment_pending": return <Clock className="h-3.5 w-3.5" />;
@@ -654,12 +766,25 @@ export default function OrderManagement() {
           onCancel={() => { setDeleteConfirmOpen(false); setPendingDeleteId(null); }}
         />
       )}
+      {cancelShipmentConfirm && (
+        <ConfirmationModal
+          title="Cancel Delhivery shipment?"
+          message="This will request Delhivery to cancel the shipment. It can only be done before dispatch."
+          confirmLabel="Cancel Shipment"
+          onConfirm={() => handleCancelDelhiveryShipment(cancelShipmentConfirm)}
+          onCancel={() => setCancelShipmentConfirm(null)}
+        />
+      )}
       {detailOrder && (
         <OrderDetailModal
           order={detailOrder}
           onClose={() => setDetailOrder(null)}
           onStatusChange={handleStatusUpdate}
           onUpdateTracking={handleUpdateTracking}
+          onCreateDelhivery={handleCreateDelhiveryShipment}
+          onCancelDelhivery={(id) => setCancelShipmentConfirm(id)}
+          onDownloadLabel={handleDownloadLabel}
+          delhiveryBusy={delhiveryLoading === detailOrder.id}
         />
       )}
 
@@ -855,8 +980,32 @@ export default function OrderManagement() {
                       </DropdownMenuItem>
                     )}
                     {order.status === "processing" && (
-                      <DropdownMenuItem onClick={() => setShipOrder(order)}>
-                        <Truck className="h-4 w-4 mr-2" />Mark Shipped
+                      <>
+                        <DropdownMenuItem onClick={() => setShipOrder(order)}>
+                          <Truck className="h-4 w-4 mr-2" />Mark Shipped
+                        </DropdownMenuItem>
+                        {!isDelhiveryOrder(order) && (
+                          <DropdownMenuItem
+                            onClick={() => handleCreateDelhiveryShipment(order.id)}
+                            disabled={delhiveryLoading === order.id}
+                          >
+                            {delhiveryLoading === order.id
+                              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              : <Send className="h-4 w-4 mr-2" />}
+                            Create Delhivery Shipment
+                          </DropdownMenuItem>
+                        )}
+                      </>
+                    )}
+                    {(order.status === "payment_confirmed" && !isDelhiveryOrder(order)) && (
+                      <DropdownMenuItem
+                        onClick={() => handleCreateDelhiveryShipment(order.id)}
+                        disabled={delhiveryLoading === order.id}
+                      >
+                        {delhiveryLoading === order.id
+                          ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          : <Send className="h-4 w-4 mr-2" />}
+                        Create Delhivery Shipment
                       </DropdownMenuItem>
                     )}
                     {order.status === "shipped" && (
@@ -866,6 +1015,23 @@ export default function OrderManagement() {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, "delivered")}>
                           <CheckCircle className="h-4 w-4 mr-2" />Mark Delivered
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {isDelhiveryOrder(order) && !["cancelled", "delivered", "refunded"].includes(order.status) && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleDownloadLabel(order.id, order.order_number)}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Print Label
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setCancelShipmentConfirm(order.id)}
+                          className="text-red-600"
+                        >
+                          <Ban className="h-4 w-4 mr-2" />Cancel Delhivery Shipment
                         </DropdownMenuItem>
                       </>
                     )}
