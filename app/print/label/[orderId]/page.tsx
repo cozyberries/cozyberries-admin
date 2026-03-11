@@ -12,6 +12,9 @@ export default async function LabelPage({
 }) {
   const session = await getSessionFromCookie();
   if (!session) redirect("/login");
+  if (!session.role || !["admin", "super_admin"].includes(session.role)) {
+    redirect("/login");
+  }
 
   const { orderId } = await params;
   const supabase = createAdminSupabaseClient();
@@ -44,10 +47,13 @@ export default async function LabelPage({
   const result = await getPackingSlipJSON(order.tracking_number);
 
   if (!result.ok || result.data.packages_found === 0) {
+    if (!result.ok) {
+      console.error("Label fetch failed", { orderId, waybill: order.tracking_number, error: result.error });
+    }
     return (
       <div style={{ padding: 32, fontFamily: "sans-serif" }}>
         <h2>Label not available</h2>
-        <p>Could not fetch label data from Delhivery. {!result.ok && result.error}</p>
+        <p>Unable to fetch label right now. Please try again later.</p>
       </div>
     );
   }

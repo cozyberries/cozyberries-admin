@@ -95,6 +95,15 @@ export interface EditShipmentRequest {
   cod?: number;
 }
 
+/**
+ * Response from Delhivery Edit Shipment API.
+ * @property status - Can be boolean (true/false) for simple success/failure or a string (e.g. status code/message). Clients should handle both types.
+ * @property waybill - Waybill number when present.
+ * @property order_id - Order reference when present.
+ * @property error - Error message when the request failed.
+ * @example status as boolean: { status: true, waybill: "51289710000011", order_id: "ORD-..." }
+ * @example status as string: { status: "Fail", error: "Package not found" }
+ */
 export interface EditShipmentResponse {
   status: boolean | string;
   waybill: string | null;

@@ -5,8 +5,11 @@ let apiContext: APIRequestContext;
 let unauthContext: APIRequestContext;
 
 async function getAdminToken(ctx: APIRequestContext): Promise<string> {
-  const email = process.env.TEST_ADMIN_EMAIL || process.env.TEST_USER_EMAIL || '';
-  const password = process.env.TEST_ADMIN_PASSWORD || process.env.TEST_USER_PASSWORD || '';
+  const email = process.env.TEST_ADMIN_EMAIL ?? '';
+  const password = process.env.TEST_ADMIN_PASSWORD ?? '';
+  if (!email || !password) {
+    throw new Error('TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD must be set for Delhivery tests');
+  }
   const res = await ctx.post('/api/auth/admin-login', {
     data: { identifier: email, password },
   });
@@ -257,6 +260,8 @@ test.describe('Delhivery Shipment Integration', () => {
     });
 
     test('should cancel Delhivery shipment', async () => {
+      const useRealDelhivery = process.env.USE_REAL_DELHIVERY_TESTS === 'true';
+      test.skip(!useRealDelhivery, 'Set USE_REAL_DELHIVERY_TESTS=true to run destructive cancel test');
       test.skip(!delhiveryOrderId, 'No existing Delhivery order');
 
       const res = await apiContext.post(`/api/orders/${delhiveryOrderId}/shipment/cancel`, {

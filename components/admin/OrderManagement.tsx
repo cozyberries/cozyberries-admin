@@ -980,24 +980,12 @@ export default function OrderManagement() {
                       </DropdownMenuItem>
                     )}
                     {order.status === "processing" && (
-                      <>
-                        <DropdownMenuItem onClick={() => setShipOrder(order)}>
-                          <Truck className="h-4 w-4 mr-2" />Mark Shipped
-                        </DropdownMenuItem>
-                        {!isDelhiveryOrder(order) && (
-                          <DropdownMenuItem
-                            onClick={() => handleCreateDelhiveryShipment(order.id)}
-                            disabled={delhiveryLoading === order.id}
-                          >
-                            {delhiveryLoading === order.id
-                              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              : <Send className="h-4 w-4 mr-2" />}
-                            Create Delhivery Shipment
-                          </DropdownMenuItem>
-                        )}
-                      </>
+                      <DropdownMenuItem onClick={() => setShipOrder(order)}>
+                        <Truck className="h-4 w-4 mr-2" />Mark Shipped
+                      </DropdownMenuItem>
                     )}
-                    {(order.status === "payment_confirmed" && !isDelhiveryOrder(order)) && (
+                    {(order.status === "processing" || order.status === "payment_confirmed") &&
+                      !isDelhiveryOrder(order) && (
                       <DropdownMenuItem
                         onClick={() => handleCreateDelhiveryShipment(order.id)}
                         disabled={delhiveryLoading === order.id}

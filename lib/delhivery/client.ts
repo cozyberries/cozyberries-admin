@@ -10,14 +10,6 @@ import type {
   DelhiveryResult,
 } from "./types";
 
-function headers(): HeadersInit {
-  return {
-    Authorization: `Token ${config.token}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-}
-
 function maskedToken(): string {
   return config.token ? config.token.slice(0, 8) + "***" : "(empty)";
 }

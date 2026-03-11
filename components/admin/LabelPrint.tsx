@@ -35,7 +35,7 @@ function parseProducts(prd: string): Array<{ name: string; qty: number }> {
     .map((name) => ({ name, qty: 1 }));
 }
 
-/** "2026-03-07T12:17:11.139" → "07-Mar-2026 | 12:17 PM" */
+/** "2026-03-07T12:17:11.139" → "07-Mar-2026" */
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
@@ -43,14 +43,12 @@ function formatDate(iso: string): string {
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const month = months[d.getMonth()];
   const year = d.getFullYear();
-  let h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, "0");
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12 || 12;
-  return `${day}-${month}-${year} | ${h}:${m} ${ampm}`;
+  return `${day}-${month}-${year}`;
 }
 
-export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
+type LabelPrintProps = { pkg: PackingSlipRawPackage; autoPrint?: boolean };
+
+export default function LabelPrint({ pkg, autoPrint = false }: LabelPrintProps) {
   const products = parseProducts(pkg.prd ?? "");
   const displayProducts = products.slice(0, 2);
   const extraCount = products.length - displayProducts.length;
@@ -65,15 +63,17 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
   const sortCode = pkg.sort_code?.trim() || "—";
 
   useEffect(() => {
+    const shouldAutoPrint =
+      autoPrint ||
+      (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("autoPrint") === "true");
+    if (!shouldAutoPrint) return;
     const t = setTimeout(() => window.print(), 700);
     return () => clearTimeout(t);
-  }, []);
+  }, [autoPrint]);
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         html, body {
@@ -90,9 +90,19 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
           background: #fff;
           width: 384px;
           min-height: 576px;
-          border: 1.5px solid #222;
+          border: 2px solid #222;
           display: flex;
           flex-direction: column;
+          padding: 10px;
+          overflow: hidden;
+        }
+        .label-inner {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          overflow: hidden;
+          border: 1px solid #ccc;
         }
 
         /* ── Header ─── */
@@ -163,12 +173,16 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
           color: #000;
           line-height: 1.15;
           margin-bottom: 4px;
+          word-break: break-word;
+          overflow-wrap: break-word;
         }
         .shipto-address {
           font-size: 13.5px;
           font-weight: 500;
           color: #111;
           line-height: 1.5;
+          word-break: break-word;
+          overflow-wrap: break-word;
         }
         .shipto-dest {
           font-size: 14px;
@@ -176,6 +190,8 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
           color: #000;
           margin-top: 3px;
           line-height: 1.3;
+          word-break: break-word;
+          overflow-wrap: break-word;
         }
         .shipto-pin {
           font-size: 15px;
@@ -196,6 +212,7 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
         .date-block .date-label {
           font-weight: 700;
           font-size: 10px;
+          margin-right: 4px;
         }
 
         /* ── Seller + Payment/Date ─── */
@@ -222,7 +239,7 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
           font-weight: 800;
         }
         .seller-oid {
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 600;
           color: #333;
           letter-spacing: 0.2px;
@@ -276,6 +293,9 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
         .product-name {
           font-weight: 500;
           line-height: 1.35;
+          word-break: break-word;
+          overflow-wrap: break-word;
+          max-width: 100%;
         }
 
         /* ── Footer ─── */
@@ -345,18 +365,30 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
             padding: 0;
             margin: 0;
             display: block;
+            height: 6in;
           }
           .no-print { display: none !important; }
           .label {
             width: 4in;
             height: 6in;
-            min-height: 6in;
-            border: none;
+            max-height: 6in;
+            padding: 0.08in;
+            border: 1px solid #000;
             page-break-after: avoid;
+            overflow: hidden;
+            box-sizing: border-box;
+          }
+          .label-inner {
+            border: 1px solid #999;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            box-sizing: border-box;
           }
           .products-section {
             flex: 1;
             min-height: 0;
+            overflow: hidden;
           }
         }
       `}</style>
@@ -368,6 +400,7 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
       </div>
 
       <div className="label">
+        <div className="label-inner">
 
         {/* ── Header ─────────────────────────────────── */}
         <div className="header">
@@ -426,8 +459,8 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
               {paymentType}{motLabel ? ` - ${motLabel}` : ""}
             </div>
             <div className="date-block">
-              <div className="date-label">Date</div>
-              <div>{formatDate(pkg.cd)}</div>
+              <span className="date-label">Date </span>
+              <span>{formatDate(pkg.cd)}</span>
             </div>
           </div>
         </div>
@@ -439,22 +472,15 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
               <tr>
                 <th>Product Name</th>
                 <th className="right">Qty.</th>
-                <th className="right">Price</th>
-                <th className="right">Total</th>
               </tr>
             </thead>
             <tbody>
-              {displayProducts.map((p, i) => {
-                const unitPrice = Math.round((pkg.rs / totalQty) * p.qty);
-                return (
-                  <tr key={i}>
-                    <td><div className="product-name">{p.name}</div></td>
-                    <td className="right">{p.qty}</td>
-                    <td className="right">{unitPrice}</td>
-                    <td className="right">{unitPrice * p.qty}</td>
-                  </tr>
-                );
-              })}
+              {displayProducts.map((p, i) => (
+                <tr key={i}>
+                  <td><div className="product-name">{p.name}</div></td>
+                  <td className="right">{p.qty}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -470,6 +496,7 @@ export default function LabelPrint({ pkg }: { pkg: PackingSlipRawPackage }) {
           <div className="footer-page">Page 1 of 1</div>
         </div>
 
+        </div>
       </div>
     </>
   );

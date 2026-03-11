@@ -61,15 +61,31 @@ export async function POST(
 
     if (updateErr) {
       console.error("Failed to update order status after cancellation", updateErr);
+      return NextResponse.json(
+        {
+          success: false,
+          delhivery_success: true,
+          db_update_success: false,
+          error: updateErr.message,
+          waybill: resp.waybill,
+          remark: resp.remark,
+          order_id: resp.order_id,
+        },
+        { status: 503 }
+      );
     }
 
     try {
       await CacheService.clearAllOrders(order.user_id);
       await CacheService.clearOrderDetails(order.user_id, orderId);
-    } catch {}
+    } catch (err) {
+      console.error("Cache clear failed after shipment cancel", { orderId, userId: order.user_id, err });
+    }
 
     return NextResponse.json({
       success: true,
+      delhivery_success: true,
+      db_update_success: true,
       waybill: resp.waybill,
       remark: resp.remark,
       order_id: resp.order_id,

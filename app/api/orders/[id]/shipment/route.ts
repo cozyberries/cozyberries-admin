@@ -23,7 +23,7 @@ export async function POST(
 
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("*")
+      .select("order_number, tracking_number, carrier_name, shipping_address, customer_phone, total_amount, payments, user_id")
       .eq("id", orderId)
       .single();
 
@@ -145,7 +145,9 @@ export async function POST(
     try {
       await CacheService.clearAllOrders(order.user_id);
       await CacheService.clearOrderDetails(order.user_id, orderId);
-    } catch {}
+    } catch (err) {
+      console.error("Cache clear failed after shipment create", { orderId, userId: order.user_id, err });
+    }
 
     return NextResponse.json({
       success: true,
@@ -191,16 +193,21 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json();
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const payload: EditShipmentRequest = {
       waybill: order.tracking_number,
     };
 
-    if (body.name) payload.name = body.name;
-    if (body.phone) payload.phone = String(body.phone);
-    if (body.address) payload.add = body.address;
-    if (body.payment_type) payload.pt = body.payment_type;
-    if (body.products_desc) payload.products_desc = body.products_desc;
+    if (body.name != null && body.name !== "") payload.name = String(body.name);
+    if (body.phone != null) payload.phone = String(body.phone);
+    if (body.address != null && body.address !== "") payload.add = String(body.address);
+    if (body.payment_type != null && body.payment_type !== "") payload.pt = String(body.payment_type);
+    if (body.products_desc != null && body.products_desc !== "") payload.products_desc = String(body.products_desc);
     if (body.weight != null) payload.gm = Number(body.weight);
     if (body.shipment_height != null) payload.shipment_height = Number(body.shipment_height);
     if (body.shipment_width != null) payload.shipment_width = Number(body.shipment_width);
@@ -226,7 +233,9 @@ export async function PATCH(
     try {
       await CacheService.clearAllOrders(order.user_id);
       await CacheService.clearOrderDetails(order.user_id, orderId);
-    } catch {}
+    } catch (err) {
+      console.error("Cache clear failed after shipment edit", { orderId, userId: order.user_id, err });
+    }
 
     return NextResponse.json({
       success: true,
