@@ -54,7 +54,8 @@ export async function GET(request: NextRequest) {
     process.env.DELHIVERY_API_BASE_URL?.trim() ||
     process.env.DELHIVERY_BASE_URL?.trim() ||
     "https://track.delhivery.com";
-  const url = `${baseUrl}/api/v1/packages/?waybill=${encodeURIComponent(waybill)}`;
+  // Correct Delhivery tracking endpoint — path must include /json/
+  const url = `${baseUrl}/api/v1/packages/json/?waybill=${encodeURIComponent(waybill)}`;
 
   let raw: DelhiveryRawResponse;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -62,26 +63,37 @@ export async function GET(request: NextRequest) {
     const controller = new AbortController();
     timeoutId = setTimeout(() => controller.abort(), 10_000);
     const res = await fetch(url, {
-      headers: { Authorization: `Token ${token}` },
+      headers: {
+        Authorization: `Token ${token}`,
+        Accept: "application/json",
+      },
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
     timeoutId = undefined;
 
-    if (res.status === 429) {
+    if (res.status === 403) {
+      // Delhivery uses 403 for rate limiting (750 req/5 min per token)
       return NextResponse.json({ error: "Delhivery rate limit exceeded" }, { status: 502 });
-    }
-    if (res.status >= 400 && res.status < 500) {
-      return NextResponse.json(
-        { error: "Delhivery API error", status: res.status },
-        { status: 502 }
-      );
-    }
-    if (!res.ok) {
-      return NextResponse.json({ error: "Delhivery API unavailable" }, { status: 502 });
     }
 
     const text = await res.text();
+
+    // HTTP 400 from Delhivery means "waybill not found" — treat as no_data, not an error
+    if (res.status === 400) {
+      console.info(`Delhivery 400 for waybill ${waybill} — treating as no_data`);
+      const noDataResult = { waybill, current_status: "no_data", scans: [], fetch_time: new Date().toISOString() };
+      try {
+        await UpstashService.set(cacheKey(waybill), noDataResult, CACHE_TTL_SECONDS);
+      } catch { /* fail-open */ }
+      return NextResponse.json({ data: noDataResult, cached: false });
+    }
+
+    if (!res.ok) {
+      console.error(`Delhivery API error: status=${res.status}`, text.slice(0, 200));
+      return NextResponse.json({ error: "Delhivery API unavailable" }, { status: 502 });
+    }
+
     try {
       raw = JSON.parse(text) as DelhiveryRawResponse;
     } catch {
@@ -92,10 +104,9 @@ export async function GET(request: NextRequest) {
       );
     }
   } catch (fetchErr) {
-    const isTimeout =
-      fetchErr instanceof Error && fetchErr.name === "AbortError";
+    const isTimeout = fetchErr instanceof Error && fetchErr.name === "AbortError";
     return NextResponse.json(
-      { error: isTimeout ? "Delhivery API unavailable" : "Delhivery API unavailable" },
+      { error: isTimeout ? "Delhivery request timed out" : "Delhivery API unavailable" },
       { status: 502 }
     );
   } finally {
