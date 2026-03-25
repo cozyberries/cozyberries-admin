@@ -342,8 +342,7 @@ function OrderDetailModal({
             <DelhiveryTrackingPanel order={order} />
           )}
           {/* "Add tracking number" nudge — shown when carrier is Delhivery but no AWB set */}
-          {(order.status === "shipped" || order.status === "delivered") &&
-            order.carrier_name?.toLowerCase().includes("delhivery") &&
+          {order.carrier_name?.toLowerCase().includes("delhivery") &&
             !order.tracking_number && (
             <p className="text-xs text-gray-400 italic">
               Add a tracking number to fetch Delhivery scans.

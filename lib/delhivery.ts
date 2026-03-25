@@ -58,14 +58,14 @@ export function parseDelhiveryResponse(
 
 /**
  * Check whether an order should show the Delhivery tracking panel.
- * Matches the carrier detection rule from spec §4.2.
+ * Shows whenever carrier is Delhivery AND a tracking number (AWB) is present,
+ * regardless of order status — an AWB may exist before status reaches "shipped".
  */
 export function isDelhiveryOrder(
   carrierName?: string | null,
   trackingNumber?: string | null,
-  status?: string | null
+  _status?: string | null   // reserved for future status-specific logic
 ): boolean {
   if (!trackingNumber?.trim()) return false;
-  if (!carrierName?.toLowerCase().includes("delhivery")) return false;
-  return status === "shipped" || status === "delivered";
+  return !!carrierName?.toLowerCase().includes("delhivery");
 }
