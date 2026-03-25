@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AdminAuthProvider } from "@/components/supabase-auth-provider";
 import { Toaster } from "sonner";
+import { ReactQueryProvider } from "@/components/query-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,15 +30,17 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <AdminAuthProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem={false}
-            disableTransitionOnChange
-          >
-            {children}
-            <Toaster />
-          </ThemeProvider>
+          <ReactQueryProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="light"
+              enableSystem={false}
+              disableTransitionOnChange
+            >
+              {children}
+              <Toaster />
+            </ThemeProvider>
+          </ReactQueryProvider>
         </AdminAuthProvider>
       </body>
     </html>

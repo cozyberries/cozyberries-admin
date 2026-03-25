@@ -27,10 +27,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "waybill is required" }, { status: 400 });
   }
 
-  // 3. Token guard
-  const token = process.env.DELHIVERY_API_TOKEN;
+  // 3. Token guard — supports both DELHIVERY_API_TOKEN and legacy DELIVERY_API_KEY
+  const token =
+    process.env.DELHIVERY_API_TOKEN?.trim() ||
+    process.env.DELIVERY_API_KEY?.trim();
   if (!token) {
-    console.error("DELHIVERY_API_TOKEN is not set");
+    console.error("Delhivery API token not set (DELHIVERY_API_TOKEN or DELIVERY_API_KEY)");
     return NextResponse.json(
       { error: "Delhivery integration not configured" },
       { status: 500 }
@@ -47,9 +49,11 @@ export async function GET(request: NextRequest) {
     console.warn("Upstash cache read failed, falling through to Delhivery:", cacheErr);
   }
 
-  // 5. Call Delhivery Pull API
+  // 5. Call Delhivery Pull API — supports both DELHIVERY_API_BASE_URL and legacy DELHIVERY_BASE_URL
   const baseUrl =
-    process.env.DELHIVERY_API_BASE_URL ?? "https://track.delhivery.com";
+    process.env.DELHIVERY_API_BASE_URL?.trim() ||
+    process.env.DELHIVERY_BASE_URL?.trim() ||
+    "https://track.delhivery.com";
   const url = `${baseUrl}/api/v1/packages/?waybill=${encodeURIComponent(waybill)}`;
 
   let raw: DelhiveryRawResponse;
