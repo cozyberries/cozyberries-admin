@@ -45,6 +45,8 @@ import { Order, OrderStatus, Payment, PaymentStatus } from "@/lib/types/order";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
 import OrderForm from "./OrderForm";
 import { toast } from "sonner";
+import { isDelhiveryOrder } from "@/lib/delhivery";
+import DelhiveryTrackingPanel from "@/components/admin/DelhiveryTrackingPanel";
 
 interface OrderWithPayments extends Order {
   payments?: Payment[];
@@ -334,6 +336,19 @@ function OrderDetailModal({
               </div>
             )}
           </div>
+
+          {/* Delhivery live tracking */}
+          {isDelhiveryOrder(order.carrier_name, order.tracking_number, order.status) && (
+            <DelhiveryTrackingPanel order={order} />
+          )}
+          {/* "Add tracking number" nudge — shown when carrier is Delhivery but no AWB set */}
+          {(order.status === "shipped" || order.status === "delivered") &&
+            order.carrier_name?.toLowerCase().includes("delhivery") &&
+            !order.tracking_number && (
+            <p className="text-xs text-gray-400 italic">
+              Add a tracking number to fetch Delhivery scans.
+            </p>
+          )}
 
           {/* Items */}
           <div>
