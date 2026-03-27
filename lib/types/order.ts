@@ -92,6 +92,9 @@ export interface Order extends OrderBase {
   tracking_number?: string;
   carrier_name?: string;
   delivery_notes?: string;
+  delhivery_latest_status?:   string;
+  delhivery_latest_scan_at?:  string;
+  delhivery_latest_location?: string;
   created_at: string;
   updated_at: string;
 }
