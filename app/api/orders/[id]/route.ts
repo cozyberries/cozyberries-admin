@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-server";
 import { authenticateRequest } from "@/lib/jwt-auth";
 import CacheService from "@/lib/services/cache";
+import { notifyAdminsOrderStatusChanged } from "@/lib/services/notification-service";
 import type { OrderStatus } from "@/lib/types/order";
 
 const VALID_STATUSES: OrderStatus[] = [
@@ -131,6 +132,16 @@ export async function PUT(
     const body = await request.json();
     const { id: orderId } = await params;
 
+    const { data: existingOrder, error: existingError } = await supabase
+      .from("orders")
+      .select("id, order_number, status, customer_email, shipping_address, tracking_number")
+      .eq("id", orderId)
+      .single();
+
+    if (existingError || !existingOrder) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
     // Build update payload — only include provided fields
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
@@ -191,6 +202,25 @@ export async function PUT(
       await CacheService.clearOrderDetails(data.user_id, orderId);
     } catch (cacheError) {
       console.error("Error clearing orders cache after admin update:", cacheError);
+    }
+
+    if (
+      body.status !== undefined &&
+      existingOrder.status !== data.status
+    ) {
+      const shippingAddr = existingOrder.shipping_address as Record<string, unknown> | null;
+      void notifyAdminsOrderStatusChanged(
+        {
+          id: data.id,
+          order_number: data.order_number,
+          status: data.status as OrderStatus,
+          customer_email: existingOrder.customer_email ?? null,
+          customer_name: shippingAddr?.full_name as string | null ?? null,
+          // Use post-update tracking_number so a simultaneously-set AWB is included
+          awb: (data.tracking_number ?? existingOrder.tracking_number) ?? null,
+        },
+        existingOrder.status as OrderStatus
+      );
     }
 
     return NextResponse.json(data);
