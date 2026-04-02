@@ -94,6 +94,48 @@ test.describe('API Routes', () => {
     expect([200, 401, 403]).toContain(response.status());
   });
 
+  // ── Webhooks & Ops API ─────────────────────────────────────────
+
+test('POST /api/webhooks/delhivery without token should return 401', async ({ request }) => {
+    const response = await request.post('/api/webhooks/delhivery', {
+      data: { event: 'order_update' },
+    });
+  expect(response.status()).toBe(401);
+  });
+
+test('POST /api/webhooks/delhivery with wrong token should return env-specific auth error', async ({ request }) => {
+    const response = await request.post('/api/webhooks/delhivery', {
+      data: { event: 'order_update' },
+      headers: {
+        'x-delhivery-token': 'wrong-token',
+      },
+    });
+  const expectedStatus = process.env.DELHIVERY_WEBHOOK_TOKEN ? 401 : 500;
+  expect(response.status()).toBe(expectedStatus);
+  });
+
+test('POST /api/webhooks/delhivery with invalid JSON should return 400 or 401', async ({ request }) => {
+    const response = await request.post('/api/webhooks/delhivery', {
+      data: '{invalid-json',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  expect([400, 401]).toContain(response.status());
+  });
+
+test('POST /api/internal/webhooks/delhivery/process without token should return 401', async ({ request }) => {
+    const response = await request.post('/api/internal/webhooks/delhivery/process', {
+      data: {},
+    });
+  expect(response.status()).toBe(401);
+  });
+
+  test('GET /api/admin/ops/webhook-events/metrics without auth should return 401 or 403', async ({ request }) => {
+    const response = await request.get('/api/admin/ops/webhook-events/metrics');
+    expect([401, 403]).toContain(response.status());
+  });
+
   // ── Profile API ────────────────────────────────────────────────
 
   test('GET /api/profile without auth should return error', async ({ request }) => {

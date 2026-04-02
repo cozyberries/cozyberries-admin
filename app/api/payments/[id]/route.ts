@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-server";
 import { authenticateRequest } from "@/lib/jwt-auth";
+import { notifyAdminsPaymentStatusChanged } from "@/lib/services/notification-service";
 import type { PaymentStatus } from "@/lib/types/order";
 import CacheService from "@/lib/services/cache";
 
@@ -165,6 +166,32 @@ export async function PATCH(
     } catch (cacheError) {
       console.error("Error clearing orders cache after admin update:", cacheError);
     }
+
+    if (
+      body.status &&
+      currentPayment.status !== payment.status
+    ) {
+      const { data: orderRow } = await supabase
+        .from("orders")
+        .select("id, order_number, customer_email, shipping_address")
+        .eq("id", currentPayment.order_id)
+        .maybeSingle();
+
+      if (orderRow) {
+        const shippingAddr = orderRow.shipping_address as Record<string, unknown> | null;
+        void notifyAdminsPaymentStatusChanged(
+          {
+            id: orderRow.id,
+            order_number: orderRow.order_number,
+            customer_email: orderRow.customer_email ?? null,
+            customer_name: shippingAddr?.full_name as string | null ?? null,
+          },
+          { id: payment.id, status: payment.status as PaymentStatus },
+          currentPayment.status as PaymentStatus
+        );
+      }
+    }
+
     return NextResponse.json({ payment });
   } catch (error) {
     console.error("Error updating payment:", error);

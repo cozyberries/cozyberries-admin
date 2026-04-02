@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-server";
 import { authenticateRequest } from "@/lib/jwt-auth";
+import {
+  notifyAdminsOrderPlaced,
+} from "@/lib/services/notification-service";
 import type { OrderCreate, OrderStatus } from "@/lib/types/order";
 
 export async function POST(request: NextRequest) {
@@ -109,6 +112,20 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    void notifyAdminsOrderPlaced({
+      id: order.id,
+      order_number: order.order_number,
+      status: order.status as OrderStatus,
+      total_amount: order.total_amount,
+      currency: order.currency,
+      customer_email: order.customer_email,
+      customer_name:
+        typeof order.shipping_address === "object" &&
+        order.shipping_address !== null
+          ? (order.shipping_address as Record<string, unknown>).full_name as string | null
+          : null,
+    });
 
     return NextResponse.json({ order: { ...order, items: body.items } }, { status: 201 });
   } catch (error) {
