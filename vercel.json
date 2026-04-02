@@ -3,11 +3,5 @@
     "deploymentEnabled": {
       "main": true
     }
-  },
-  "crons": [
-    {
-      "path": "/api/internal/webhooks/delhivery/process",
-      "schedule": "* * * * *"
-    }
-  ]
+  }
 }
