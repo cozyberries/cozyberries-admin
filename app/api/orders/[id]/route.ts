@@ -209,7 +209,7 @@ export async function PUT(
       existingOrder.status !== data.status
     ) {
       const shippingAddr = existingOrder.shipping_address as Record<string, unknown> | null;
-      void notifyAdminsOrderStatusChanged(
+      await notifyAdminsOrderStatusChanged(
         {
           id: data.id,
           order_number: data.order_number,

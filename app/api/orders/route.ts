@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    void notifyAdminsOrderPlaced({
+    await notifyAdminsOrderPlaced({
       id: order.id,
       order_number: order.order_number,
       status: order.status as OrderStatus,

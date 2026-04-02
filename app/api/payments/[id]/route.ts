@@ -179,7 +179,7 @@ export async function PATCH(
 
       if (orderRow) {
         const shippingAddr = orderRow.shipping_address as Record<string, unknown> | null;
-        void notifyAdminsPaymentStatusChanged(
+        await notifyAdminsPaymentStatusChanged(
           {
             id: orderRow.id,
             order_number: orderRow.order_number,
