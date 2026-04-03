@@ -52,15 +52,17 @@ The admin app is a Next.js App Router application (`next` 16.x) with no Web App 
 
 ### 5.3 Minimal service worker (install-only)
 
-- Add a **minimal** service worker registered at **site scope** (e.g. `/`) that **does not** cache responses: `fetch` handler forwards to the network only (or equivalent no-op caching policy).
-- Registration runs from client code once per load/session as appropriate; failures are non-fatal (see §7).
+- Add a **minimal** service worker registered at **site scope** (e.g. `/`) that **does not** cache responses: **no precache list, no runtime caching** — `fetch` handler forwards to the network only (or equivalent no-op caching policy), so implementers must not enable Workbox-style defaults that cache HTML or API routes.
+- The SW file typically lives under **`public/`** (e.g. `public/sw.js`) and is registered from **client** code via `navigator.serviceWorker.register` — the App Router does not provide a first-class service worker route; avoid assuming a built-in Next.js SW.
+- Registration runs from client code once per load/session as appropriate; failures are non-fatal (see §7). After deploys, rely on normal **update** behavior (new SW activates on navigation); no offline cache invalidation is required because nothing is cached.
 
 **Rationale:** Chromium historically ties installability to a registered service worker with a fetch handler; we satisfy that without storing admin data offline.
 
 ### 5.4 Install banner (client)
 
 - New client component (e.g. `PwaInstallBanner`) marked `"use client"`.
-- Render inside the existing provider tree (e.g. in `app/layout.tsx` alongside `AdminAuthProvider`) so it can read **`useAdminAuth()`** (or equivalent) and only render when **`isAuthenticated && !loading`**.
+- Render **`PwaInstallBanner` as a descendant of `AdminAuthProvider`** in `app/layout.tsx` (e.g. nested inside `<AdminAuthProvider>...</AdminAuthProvider>` next to `ReactQueryProvider` / `ThemeProvider`), **not** as a sibling outside the provider — `useAdminAuth()` only works on descendants of `AdminAuthProvider`.
+- Only render when **`isAuthenticated && !loading`**.
 - **Visibility rules — hide when:**
   - User is not authenticated or auth is still loading.
   - App runs in **standalone** / installed mode: `matchMedia('(display-mode: standalone)')` and iOS `navigator.standalone`.
@@ -90,6 +92,8 @@ The admin app is a Next.js App Router application (`next` 16.x) with no Web App 
 
 - **SW registration fails:** log in development; do not block rendering; banner may still be useful on iOS or degrade gracefully on Chromium if install criteria are unmet.
 - **`sessionStorage` throws:** catch and treat as “not dismissed” or skip persisting dismiss to avoid infinite loops.
+- **`sessionStorage` is per-tab:** dismissing in one tab does **not** hide the banner in other open tabs (unless out-of-scope sync via `storage` events / `localStorage` is added later).
+- **Logout + login in the same tab:** the session dismiss key **remains** until the tab is closed (by design for “this session”). If product later wants the banner to reappear after every login, clear the dismiss key in **`signOut`** (implementation option — not required for v1).
 - **`beforeinstallprompt` never fires:** do not crash; iOS path still works; Chromium users may see no primary install action until criteria are met (engagement, HTTPS, etc.).
 - **Install prompt dismissed:** clear stored event; avoid repeated automatic prompts without a new user gesture where applicable.
 - **Development:** install prompts often require HTTPS and real engagement; document for contributors in implementation notes or `TESTING.md` if useful.
@@ -115,3 +119,4 @@ The admin app is a Next.js App Router application (`next` 16.x) with no Web App 
 - Confirm exact Next.js 16 API for `app/manifest.ts` and any `metadata` merge behavior.
 - Verify installability checklist in a staging deployment (HTTPS, icons, manifest, SW).
 - Final copy strings for iOS vs Chromium banners (product/legal tone).
+- Service worker: implement as `public/sw.js` (or build output under `public/`) plus client registration; confirm no third-party PWA plugin injects caching.
