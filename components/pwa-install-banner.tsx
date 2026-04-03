@@ -77,10 +77,10 @@ export function PwaInstallBanner() {
       role="region"
       aria-label="Install CozyBerries Admin"
       data-testid="pwa-install-banner"
-      className="fixed top-0 left-0 right-0 z-[100] border-b border-border bg-background/95 p-4 pt-[max(1rem,env(safe-area-inset-top))] shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      className="fixed top-0 left-0 right-0 z-[110] max-w-[100vw] border-b border-border bg-background/95 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]"
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-foreground">
+        <p className="text-sm leading-snug text-foreground sm:text-base">
           {showIos ? (
             <>
               Install this app: tap <strong>Share</strong>, then{" "}
@@ -88,12 +88,13 @@ export function PwaInstallBanner() {
             </>
           ) : (
             <>
-              Install CozyBerries Admin for quick access from your home screen or
-              desktop.
+              Install CozyBerries Admin for quick access from your{" "}
+              <span className="sm:hidden">home screen.</span>
+              <span className="hidden sm:inline">home screen or desktop.</span>
             </>
           )}
         </p>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 gap-2 touch-manipulation">
           {!showIos && (
             <Button type="button" size="sm" onClick={onInstallClick}>
               Install
