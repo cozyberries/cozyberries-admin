@@ -268,6 +268,17 @@ Kill the process using port 3001:
 lsof -ti:3001 | xargs kill -9
 ```
 
+## PWA / install banner (manual)
+
+Use these checks on a **HTTPS** deployment (or `localhost` for manifest/SW registration):
+
+1. **Manifest:** DevTools → **Application** → **Manifest** — no errors; **192** and **512** icons load.
+2. **Service worker:** **Application** → **Service Workers** — `sw.js` active for `/`; no offline precache of API routes.
+3. **Install (Chromium):** While signed in, use the in-app banner **Install** after `beforeinstallprompt`, or the browser **Install app** menu when shown.
+4. **iOS Safari:** Sign in — banner shows **Share → Add to Home Screen** instructions; there is no in-browser install API.
+
+Smoke tests: `npx playwright test tests/pwa.spec.ts` (expects dev server on port **4000**, see `playwright.config.ts`).
+
 ## 📚 Additional Resources
 
 - [Playwright Documentation](https://playwright.dev/)
