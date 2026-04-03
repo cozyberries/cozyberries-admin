@@ -77,7 +77,7 @@ export function PwaInstallBanner() {
       role="region"
       aria-label="Install CozyBerries Admin"
       data-testid="pwa-install-banner"
-      className="fixed bottom-0 left-0 right-0 z-[100] border-t border-border bg-background/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      className="fixed top-0 left-0 right-0 z-[100] border-b border-border bg-background/95 p-4 pt-[max(1rem,env(safe-area-inset-top))] shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80"
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-foreground">
