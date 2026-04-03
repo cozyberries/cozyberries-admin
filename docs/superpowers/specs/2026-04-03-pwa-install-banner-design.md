@@ -61,7 +61,7 @@ The admin app is a Next.js App Router application (`next` 16.x) with no Web App 
 ### 5.4 Install banner (client)
 
 - New client component (e.g. `PwaInstallBanner`) marked `"use client"`.
-- Render **`PwaInstallBanner` as a descendant of `AdminAuthProvider`** in `app/layout.tsx` (e.g. nested inside `<AdminAuthProvider>...</AdminAuthProvider>` next to `ReactQueryProvider` / `ThemeProvider`), **not** as a sibling outside the provider — `useAdminAuth()` only works on descendants of `AdminAuthProvider`.
+- Render **`PwaInstallBanner` as a descendant of `AdminAuthProvider`** in `app/layout.tsx` (e.g. nested inside `<AdminAuthProvider>...</AdminAuthProvider>` next to `ReactQueryProvider` / `ThemeProvider`), **not** as a sibling outside the provider — **`useAuth()`** (from `AdminAuthProvider`) only works on descendants of `AdminAuthProvider`.
 - Only render when **`isAuthenticated && !loading`**.
 - **Visibility rules — hide when:**
   - User is not authenticated or auth is still loading.

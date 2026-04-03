@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-04-03-pwa-install-banner-design.md`
 
+**Note:** The spec mentions `useAdminAuth()` in places; this codebase exports **`useAuth()`** from `components/supabase-auth-provider.tsx` — use `useAuth()` in implementation.
+
 ---
 
 ## File map
@@ -26,6 +28,7 @@
 | `components/pwa-service-worker-register.tsx` | Create | `useEffect` → `navigator.serviceWorker.register('/sw.js')` once; dev-only `console` on failure |
 | `app/layout.tsx` | Modify | Import metadata extensions; nest `PwaServiceWorkerRegister` + `PwaInstallBanner` inside `AdminAuthProvider` |
 | `tests/pwa.spec.ts` | Create (optional) | Login page: banner hidden; document has manifest link |
+| `playwright.config.ts` | Modify | Align default `use.baseURL` with `webServer.url` (both port **4000**) — today default is `4001` while `webServer` uses `4000` |
 | `TESTING.md` | Modify (small) | Short “PWA / install banner” manual checklist if not redundant |
 
 ---
@@ -271,7 +274,18 @@ git commit -m "feat(pwa): mount PWA registration and install banner"
 ### Task 6: Playwright smoke (optional)
 
 **Files:**
+- Modify: `playwright.config.ts` (baseURL alignment)
 - Create: `tests/pwa.spec.ts`
+
+- [ ] **Step 0: Align Playwright `baseURL` with dev server**
+
+In `playwright.config.ts`, `webServer.url` is `http://localhost:4000` but `use.baseURL` defaults to `http://localhost:4001`. Change the fallback to match:
+
+```typescript
+baseURL: process.env.BASE_URL || "http://localhost:4000",
+```
+
+Alternatively keep code as-is and set `BASE_URL=http://localhost:4000` in `.env.test` (and document). Pick one approach so `npx playwright test` hits the same server Playwright starts.
 
 - [ ] **Step 1: Login page has no banner**
 
@@ -292,13 +306,15 @@ test.describe("PWA install banner", () => {
 });
 ```
 
+Because the root `app/layout.tsx` wraps all routes, the manifest `<link>` is present on `/login` without logging in — sufficient for this smoke test.
+
 - [ ] **Step 2: Run**
 
 ```bash
 npx playwright test tests/pwa.spec.ts
 ```
 
-Expected: PASS (requires dev server on `BASE_URL`, typically port 4001 per `playwright.config.ts` — align with `npm run dev` port or use `BASE_URL=http://localhost:4000` for local).
+Expected: PASS with dev server on port **4000** (after Step 0).
 
 - [ ] **Step 3: Commit**
 
