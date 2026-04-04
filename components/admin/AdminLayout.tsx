@@ -38,7 +38,7 @@ function pageTitle(pathname: string): string {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
-  const { signOut, user } = useAuth();
+  const { signOut } = useAuth();
 
   const handleSignOut = async () => {
     if (isLoggingOut) return;
@@ -103,21 +103,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* User + sign-out */}
           <div className="border-t border-gray-100 p-4 space-y-3">
-            {user && (
-              <div className="flex items-center gap-2 px-1">
-                <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-blue-700">
-                    {(user.username ?? user.email ?? "A")[0].toUpperCase()}
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-gray-900 truncate">
-                    {user.full_name ?? user.username ?? user.email ?? "Admin"}
-                  </p>
-                  <p className="text-[10px] text-gray-400 truncate capitalize">{user.role}</p>
-                </div>
-              </div>
-            )}
             <Button
               variant="outline"
               onClick={handleSignOut}
