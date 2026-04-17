@@ -43,6 +43,7 @@
     "dotenv": "^16.4.7",
     "dotenv-cli": "^7.4.3",
     "framer-motion": "^12.23.24",
+    "jsbarcode": "^3.12.3",
     "jsonwebtoken": "^9.0.2",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.469.0",
@@ -73,6 +74,7 @@
     "eslint": "^9.16.0",
     "eslint-config-next": "15.1.0",
     "postcss": "^8.4.49",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2"
   }
