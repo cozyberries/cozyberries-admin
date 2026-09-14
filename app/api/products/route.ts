@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest, isAdminUser } from "@/lib/jwt-auth";
 import { ProductCreate } from "@/lib/types/product";
 import { UpstashService } from "@/lib/upstash";
 import { RawProduct, normaliseProduct } from "@/lib/api/products";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const auth = await authenticateRequest(request);
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const supabase = createAdminSupabaseClient();
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -80,20 +86,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const auth = await authenticateRequest(request);
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const supabase = createAdminSupabaseClient();
     const body: ProductCreate & {
       stock_quantity?: number;
       is_featured?: boolean;

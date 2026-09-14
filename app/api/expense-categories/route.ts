@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createServerSupabaseClient,
-  createAdminSupabaseClient,
-} from "@/lib/supabase-server";
-import { authenticateRequest } from "@/lib/jwt-auth";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest, isAdminUser } from "@/lib/jwt-auth";
 import { ExpenseCategoryCreate } from "@/lib/types/expense";
 
 export async function GET(request: NextRequest) {
@@ -11,14 +8,14 @@ export async function GET(request: NextRequest) {
     // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
-    if (!auth.isAuthenticated) {
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("include_inactive") === "true";
     const adminView = searchParams.get("admin") === "true";
@@ -64,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
-    if (!auth.isAuthenticated || !auth.isAdmin) {
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 }

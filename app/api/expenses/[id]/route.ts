@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createServerSupabaseClient,
-  createAdminSupabaseClient,
-} from "@/lib/supabase-server";
-import { authenticateRequest } from "@/lib/jwt-auth";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest, isAdminUser } from "@/lib/jwt-auth";
 import { ExpenseUpdate } from "@/lib/types/expense";
 
 export async function GET(
@@ -15,14 +12,14 @@ export async function GET(
     // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
-    if (!auth.isAuthenticated || !auth.isAdmin) {
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 }
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
 
     // First, get the expense with category data
     const { data: expense, error } = await supabase
@@ -130,14 +127,14 @@ export async function PUT(
     // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
-    if (!auth.isAuthenticated || !auth.isAdmin) {
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 }
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
 
     const body: ExpenseUpdate = await request.json();
 
@@ -303,14 +300,14 @@ export async function DELETE(
     // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
-    if (!auth.isAuthenticated || !auth.isAdmin) {
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 }
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
 
     const { error } = await supabase
       .from("expenses")

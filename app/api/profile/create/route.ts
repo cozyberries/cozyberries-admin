@@ -1,29 +1,24 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest, isAdminUser, type UserPayload } from "@/lib/jwt-auth";
 
 // POST: create or ensure user profile exists (used by supabase-auth-provider after sign-in)
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const auth = await authenticateRequest(request);
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const user = auth.user as UserPayload;
 
+    const supabase = createAdminSupabaseClient();
     const { data: profile, error: profileError } = await supabase
       .from("user_profiles")
       .upsert(
         {
           id: user.id,
-          full_name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "User",
-          role: user.user_metadata?.role ?? "customer",
+          full_name: user.username ?? user.email?.split("@")[0] ?? "User",
+          role: user.role ?? "customer",
           is_active: true,
           updated_at: new Date().toISOString(),
         },

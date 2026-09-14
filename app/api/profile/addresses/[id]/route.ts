@@ -1,24 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest, isAdminUser, type UserPayload } from "@/lib/jwt-auth";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const auth = await authenticateRequest(request);
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const user = auth.user as UserPayload;
 
+    const supabase = createAdminSupabaseClient();
     const { id } = await params;
     
     // Parse JSON with explicit error handling
@@ -130,23 +125,17 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const auth = await authenticateRequest(request);
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const user = auth.user as UserPayload;
 
+    const supabase = createAdminSupabaseClient();
     const { id } = await params;
 
     const { data, error } = await supabase

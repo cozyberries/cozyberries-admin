@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { authenticateRequest } from "@/lib/jwt-auth";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest, isAdminUser } from "@/lib/jwt-auth";
 import { ExpenseCategoryUpdate } from "@/lib/types/expense";
 
 export async function GET(
@@ -12,14 +12,14 @@ export async function GET(
     // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
-    if (!auth.isAuthenticated) {
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
 
     const { data: category, error } = await supabase
       .from("expense_categories")
@@ -61,14 +61,14 @@ export async function PUT(
     // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
-    if (!auth.isAuthenticated || !auth.isAdmin) {
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 }
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
     const body: ExpenseCategoryUpdate = await request.json();
 
     // First, check if category exists and get current data
@@ -184,14 +184,14 @@ export async function DELETE(
     // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
-    if (!auth.isAuthenticated || !auth.isAdmin) {
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 }
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
 
     // First, check if category exists and is not a system category
     const { data: category, error: fetchError } = await supabase
