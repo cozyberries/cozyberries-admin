@@ -1,128 +1,71 @@
+/**
+ * Customer address endpoints — DELIBERATELY NOT IMPLEMENTED.
+ *
+ * These routes operate on `user_addresses`, whose `user_id` references a customer
+ * identity in Supabase `auth.users`. This admin app does not authenticate as a
+ * Supabase user: it authenticates against the `admin_users` table (bcrypt + a custom
+ * JWT, see lib/admin-auth.ts), so the only caller identity available here is an
+ * `admin_users.id`.
+ *
+ * Those two id spaces are unrelated — each table mints its own `gen_random_uuid()`
+ * values and there is no mapping between them. Running these handlers against an
+ * `admin_users.id` therefore does not fail loudly; it silently misbehaves:
+ * SELECT matches nothing and returns `[]` as though the customer had no addresses,
+ * and INSERT writes an orphan row (or trips a foreign key) under a user_id that
+ * belongs to no customer.
+ *
+ * Returning wrong data is worse than returning an error, so every handler stops at
+ * an explicit 501 after the admin gate and before any database access. The previous
+ * implementations were removed rather than left unreachable; they are recoverable
+ * from git history and would need rewriting against the reconciled identity anyway.
+ *
+ * Reconciling admin/customer identity is tracked as separate work. This is a
+ * deliberate hold, not an abandoned route.
+ */
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabaseClient } from "@/lib/supabase-server";
-import { authenticateRequest, isAdminUser, type UserPayload } from "@/lib/jwt-auth";
+import { authenticateRequest, isAdminUser } from "@/lib/jwt-auth";
+
+const NOT_IMPLEMENTED = {
+  error: "Not implemented: admin/customer identity reconciliation pending",
+} as const;
+
+/**
+ * Rejects anyone who is not an authenticated admin. Returns null when the caller
+ * passes, so handlers can `return gate ?? notImplemented()`.
+ *
+ * Any throw (for example a missing JWT_SECRET) propagates to the caller's catch,
+ * which must fail closed with an error status — never a 200.
+ */
+async function requireAdmin(request: NextRequest): Promise<NextResponse | null> {
+  const auth = await authenticateRequest(request);
+  if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
+}
+
+function notImplemented(): NextResponse {
+  return NextResponse.json(NOT_IMPLEMENTED, { status: 501 });
+}
+
+function internalError(): NextResponse {
+  return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticateRequest(request);
-    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const user = auth.user as UserPayload;
-
-    const supabase = createAdminSupabaseClient();
-    try {
-      const { data } = await supabase
-        .from("user_addresses")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("is_active", true);
-      return NextResponse.json(data ?? []);
-    } catch (err) {
-      console.error(
-        "[GET /api/profile/addresses] Supabase query failed: user_addresses select * where user_id=%s and is_active=true",
-        user.id,
-        err
-      );
-      return NextResponse.json([]);
-    }
+    return (await requireAdmin(request)) ?? notImplemented();
   } catch (err) {
-    console.error(
-      "[GET /api/profile/addresses] Auth or Supabase client failed",
-      err
-    );
-    return NextResponse.json([]);
+    console.error("[GET /api/profile/addresses] Authentication failed", err);
+    return internalError();
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await authenticateRequest(request);
-    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const user = auth.user as UserPayload;
-
-    const supabase = createAdminSupabaseClient();
-    const body = await request.json();
-    
-    // Validate required fields
-    if (!body.address_line_1 || !body.address_line_1.trim()) {
-      return NextResponse.json(
-        { error: "address_line_1 is required" },
-        { status: 400 }
-      );
-    }
-    if (!body.city || !body.city.trim()) {
-      return NextResponse.json(
-        { error: "city is required" },
-        { status: 400 }
-      );
-    }
-    if (!body.state || !body.state.trim()) {
-      return NextResponse.json(
-        { error: "state is required" },
-        { status: 400 }
-      );
-    }
-    if (!body.postal_code || !body.postal_code.trim()) {
-      return NextResponse.json(
-        { error: "postal_code is required" },
-        { status: 400 }
-      );
-    }
-
-    // Use RPC to atomically handle default address logic
-    const addressData = {
-      user_id: user.id,
-      address_type: body.address_type ?? "home",
-      label: body.label ?? null,
-      full_name: body.full_name ?? null,
-      phone: body.phone ?? null,
-      address_line_1: body.address_line_1,
-      address_line_2: body.address_line_2 ?? null,
-      city: body.city,
-      state: body.state,
-      postal_code: body.postal_code,
-      country: body.country ?? "India",
-      is_default: body.is_default ?? false,
-      is_active: true,
-    };
-
-    const { data, error } = await supabase
-      .rpc('ensure_single_default_address', {
-        p_user_id: user.id,
-        p_address_type: addressData.address_type,
-        p_label: addressData.label,
-        p_full_name: addressData.full_name,
-        p_phone: addressData.phone,
-        p_address_line_1: addressData.address_line_1,
-        p_address_line_2: addressData.address_line_2,
-        p_city: addressData.city,
-        p_state: addressData.state,
-        p_postal_code: addressData.postal_code,
-        p_country: addressData.country,
-        p_is_default: addressData.is_default,
-        p_is_active: addressData.is_active,
-      });
-
-    if (error) {
-      console.error("Failed to create address via RPC:", error);
-      return NextResponse.json(
-        { error: "Failed to create address" },
-        { status: 500 }
-      );
-    }
-
-    // RPC returns an array with one row, extract it
-    const newAddress = Array.isArray(data) && data.length > 0 ? data[0] : data;
-
-    return NextResponse.json(newAddress, { status: 201 });
-  } catch (error) {
-    console.error("Address create error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return (await requireAdmin(request)) ?? notImplemented();
+  } catch (err) {
+    console.error("[POST /api/profile/addresses] Authentication failed", err);
+    return internalError();
   }
 }

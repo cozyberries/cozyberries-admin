@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createAdminSupabaseClient } from "@/lib/supabase-server";
 import { createAdmin, generateAdminJWT, setSessionCookie } from "@/lib/admin-auth";
 
@@ -34,10 +34,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Hash both sides before comparing: timingSafeEqual requires equal byte lengths,
+    // and comparing character lengths first would let a same-length key containing a
+    // multi-byte character through the guard and make timingSafeEqual throw. Digests
+    // are always 32 bytes, so the comparison is total and stays constant-time.
+    const setupKeyDigest = createHash("sha256")
+      .update(typeof setupKey === "string" ? setupKey : "", "utf8")
+      .digest();
+    const expectedKeyDigest = createHash("sha256")
+      .update(expectedSetupKey, "utf8")
+      .digest();
+
     if (
       typeof setupKey !== "string" ||
-      setupKey.length !== expectedSetupKey.length ||
-      !timingSafeEqual(Buffer.from(setupKey), Buffer.from(expectedSetupKey))
+      !timingSafeEqual(setupKeyDigest, expectedKeyDigest)
     ) {
       return NextResponse.json(
         { error: "Invalid setup key" },
