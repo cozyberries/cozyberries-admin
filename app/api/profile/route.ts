@@ -1,126 +1,72 @@
-import { NextResponse } from "next/server";
-import { createAdminSupabaseClient } from "@/lib/supabase-server";
-import { authenticateRequest, isAdminUser, type UserPayload } from "@/lib/jwt-auth";
+/**
+ * Customer profile read/update endpoints — DELIBERATELY NOT IMPLEMENTED.
+ *
+ * These routes operate on `user_profiles`, which is keyed by a customer identity in
+ * Supabase `auth.users`. This admin app does not authenticate as a Supabase user: it
+ * authenticates against the `admin_users` table (bcrypt + a custom JWT, see
+ * lib/admin-auth.ts), so the only caller identity available here is an
+ * `admin_users.id`.
+ *
+ * Those two id spaces are unrelated — each table mints its own `gen_random_uuid()`
+ * values and there is no mapping between them. Running these handlers against an
+ * `admin_users.id` therefore does not fail loudly; it silently misbehaves:
+ *   - GET never matched a row and fell through to a synthesized profile, returning a
+ *     plausible-looking record that corresponds to no stored customer.
+ *   - PUT upserted `user_profiles` with `id = <admin_users.id>`, writing a junk row
+ *     into a customer table under an id that belongs to no customer.
+ *
+ * Returning wrong data is bad; reporting success for a write that landed in the wrong
+ * place is worse. Both handlers now stop at an explicit 501 after the admin gate and
+ * before any database access. The previous implementations were removed rather than
+ * left unreachable; they are recoverable from git history and would need rewriting
+ * against the reconciled identity anyway.
+ *
+ * Reconciling admin/customer identity is tracked as separate work. This is a
+ * deliberate hold, not an abandoned route.
+ */
+import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest, isAdminUser } from "@/lib/jwt-auth";
 
-const FULL_NAME_MAX_LENGTH = 100;
-const PHONE_MAX_LENGTH = 20;
-/** E.164 / basic: optional +, then digits and common separators (space, hyphen, parens, dot) */
-const PHONE_PATTERN = /^\+?[\d\s\-().]*\d[\d\s\-().]*$/;
+/**
+ * Rejects anyone who is not an authenticated admin. Returns null when the caller
+ * passes, so handlers can `return gate ?? notImplemented()`.
+ *
+ * Any throw (for example a missing JWT_SECRET) propagates to the caller's catch,
+ * which must fail closed with an error status — never a 200.
+ */
+async function requireAdmin(request: NextRequest): Promise<NextResponse | null> {
+  const auth = await authenticateRequest(request);
+  if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
+}
 
-export async function GET(request: Request) {
+function notImplemented(): NextResponse {
+  return NextResponse.json(
+    { error: "Not implemented: admin/customer identity reconciliation pending" },
+    { status: 501 }
+  );
+}
+
+function internalError(): NextResponse {
+  return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticateRequest(request);
-    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const user = auth.user as UserPayload;
-
-    const supabase = createAdminSupabaseClient();
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (profile) {
-      return NextResponse.json({
-        id: profile.id,
-        email: user.email ?? "",
-        full_name: profile.full_name ?? user.username ?? null,
-        phone: profile.phone ?? null,
-        updated_at: profile.updated_at ?? new Date().toISOString(),
-      });
-    }
-
-    return NextResponse.json({
-      id: user.id,
-      email: user.email ?? "",
-      full_name: user.username ?? null,
-      phone: null,
-      updated_at: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("Profile get error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return (await requireAdmin(request)) ?? notImplemented();
+  } catch (err) {
+    console.error("[GET /api/profile] Authentication failed", err);
+    return internalError();
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    const auth = await authenticateRequest(request);
-    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const user = auth.user as UserPayload;
-
-    const supabase = createAdminSupabaseClient();
-    const body = await request.json();
-    const updates: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
-    };
-
-    if (body.full_name !== undefined) {
-      const fullName =
-        typeof body.full_name === "string" ? body.full_name.trim() : "";
-      if (fullName.length > FULL_NAME_MAX_LENGTH) {
-        return NextResponse.json(
-          {
-            error: `full_name must be at most ${FULL_NAME_MAX_LENGTH} characters`,
-          },
-          { status: 400 }
-        );
-      }
-      updates.full_name = fullName || null;
-    }
-    if (body.phone !== undefined) {
-      const phone =
-        typeof body.phone === "string" ? body.phone.trim() : body.phone === null ? "" : String(body.phone);
-      if (phone.length > PHONE_MAX_LENGTH) {
-        return NextResponse.json(
-          {
-            error: `phone must be at most ${PHONE_MAX_LENGTH} characters`,
-          },
-          { status: 400 }
-        );
-      }
-      // Only validate format if phone is provided
-      if (phone.length > 0 && !PHONE_PATTERN.test(phone)) {
-        return NextResponse.json(
-          { error: "phone must be a valid number (E.164 or digits with optional +, spaces, hyphens, parentheses)" },
-          { status: 400 }
-        );
-      }
-      updates.phone = phone || null;
-    }
-
-    const { data: profile, error } = await supabase
-      .from("user_profiles")
-      .upsert({ id: user.id, ...updates }, { onConflict: "id" })
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json(
-        { error: "Failed to update profile" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      id: profile.id,
-      email: user.email ?? "",
-      full_name: profile.full_name ?? null,
-      phone: profile.phone ?? null,
-      updated_at: profile.updated_at,
-    });
-  } catch (error) {
-    console.error("Profile update error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return (await requireAdmin(request)) ?? notImplemented();
+  } catch (err) {
+    console.error("[PUT /api/profile] Authentication failed", err);
+    return internalError();
   }
 }
