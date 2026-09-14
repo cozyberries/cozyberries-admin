@@ -26,10 +26,9 @@ export async function GET(request: NextRequest) {
       .order("sort_order", { ascending: true })
       .order("display_name", { ascending: true });
 
-    // For admin view, show all categories; for regular users, only active ones
-    if (!adminView || !auth.isAdmin) {
-      query = query.eq("is_active", true);
-    } else if (!includeInactive) {
+    // The gate above guarantees an admin caller, so the only remaining choice is
+    // whether this particular request asked for the inactive rows as well.
+    if (!adminView || !includeInactive) {
       query = query.eq("is_active", true);
     }
 

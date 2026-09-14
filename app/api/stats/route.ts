@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { authenticateRequest } from "@/lib/jwt-auth";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest, isAdminUser } from "@/lib/jwt-auth";
 
 export async function GET(request: NextRequest) {
   try {
     // Authenticate the request using JWT
     const auth = await authenticateRequest(request);
 
-    if (!auth.isAuthenticated || !auth.isAdmin) {
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
       return NextResponse.json(
         { error: "Admin access required" },
         { status: 403 }
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminSupabaseClient();
 
     // Get user statistics using the admin function
     const { data: userStats, error: userStatsError } = await supabase.rpc(

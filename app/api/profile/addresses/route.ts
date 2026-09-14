@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest, isAdminUser, type UserPayload } from "@/lib/jwt-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const auth = await authenticateRequest(request);
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const user = auth.user as UserPayload;
 
+    const supabase = createAdminSupabaseClient();
     try {
       const { data } = await supabase
         .from("user_addresses")
@@ -42,19 +37,13 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const auth = await authenticateRequest(request);
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const user = auth.user as UserPayload;
 
+    const supabase = createAdminSupabaseClient();
     const body = await request.json();
     
     // Validate required fields

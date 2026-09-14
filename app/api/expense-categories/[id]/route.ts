@@ -34,13 +34,6 @@ export async function GET(
       );
     }
 
-    // Non-admin users can only see active categories
-    if (!auth.isAdmin && !category.is_active) {
-      return NextResponse.json(
-        { error: "Expense category not found" },
-        { status: 404 }
-      );
-    }
 
     return NextResponse.json(category);
   } catch (error) {

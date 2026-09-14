@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createAdminSupabaseClient } from "@/lib/supabase-server";
+import { authenticateRequest, isAdminUser, type UserPayload } from "@/lib/jwt-auth";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const auth = await authenticateRequest(request);
+    if (!auth.isAuthenticated || !isAdminUser(auth.user)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const user = auth.user as UserPayload;
 
+    const supabase = createAdminSupabaseClient();
     const { data: profile, error: profileError } = await supabase
       .from("user_profiles")
       .select("*")
@@ -35,14 +30,14 @@ export async function GET() {
       ? {
           id: profile.id,
           email: user.email ?? "",
-          full_name: profile.full_name ?? user.user_metadata?.full_name ?? null,
+          full_name: profile.full_name ?? user.username ?? null,
           phone: profile.phone ?? null,
           updated_at: profile.updated_at ?? new Date().toISOString(),
         }
       : {
           id: user.id,
           email: user.email ?? "",
-          full_name: user.user_metadata?.full_name ?? null,
+          full_name: user.username ?? null,
           phone: null,
           updated_at: new Date().toISOString(),
         };

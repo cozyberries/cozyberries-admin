@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { createAdminSupabaseClient } from "@/lib/supabase-server";
 import { createAdmin, generateAdminJWT, setSessionCookie } from "@/lib/admin-auth";
 
@@ -19,9 +20,25 @@ export async function POST(request: NextRequest) {
 
     const { username, password, email, setupKey } = body;
 
-    // Verify setup key
-    const expectedSetupKey = process.env.ADMIN_SETUP_KEY || 'super-secret-setup-key-change-this';
-    if (setupKey !== expectedSetupKey) {
+    // Verify setup key. No fallback: this route creates a super_admin through the
+    // service-role client, so a default key would be a live privilege-escalation path.
+    // If ADMIN_SETUP_KEY is unset the route refuses outright.
+    const expectedSetupKey = process.env.ADMIN_SETUP_KEY;
+    if (!expectedSetupKey) {
+      console.error(
+        "[POST /api/setup] Refused: ADMIN_SETUP_KEY is not configured."
+      );
+      return NextResponse.json(
+        { error: "Admin setup is disabled" },
+        { status: 503 }
+      );
+    }
+
+    if (
+      typeof setupKey !== "string" ||
+      setupKey.length !== expectedSetupKey.length ||
+      !timingSafeEqual(Buffer.from(setupKey), Buffer.from(expectedSetupKey))
+    ) {
       return NextResponse.json(
         { error: "Invalid setup key" },
         { status: 401 }
