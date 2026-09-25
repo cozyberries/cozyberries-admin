@@ -9,6 +9,8 @@ const VALID_STATUSES: OrderStatus[] = [
   "payment_pending",
   "payment_confirmed",
   "processing",
+  "ready_for_pickup",
+  "collected",
   "shipped",
   "delivered",
   "cancelled",

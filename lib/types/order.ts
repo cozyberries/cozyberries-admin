@@ -1,7 +1,9 @@
-export type OrderStatus = 
+export type OrderStatus =
   | 'payment_pending'
   | 'payment_confirmed'
   | 'processing'
+  | 'ready_for_pickup'
+  | 'collected'
   | 'shipped'
   | 'delivered'
   | 'cancelled'

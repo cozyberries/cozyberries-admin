@@ -23,12 +23,19 @@ export async function POST(
 
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("order_number, tracking_number, carrier_name, shipping_address, customer_phone, total_amount, payments(payment_method, status), user_id")
+      .select("fulfilment_method, order_number, tracking_number, carrier_name, shipping_address, customer_phone, total_amount, payments(payment_method, status), user_id")
       .eq("id", orderId)
       .single();
 
     if (orderErr || !order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (order.fulfilment_method === "pickup") {
+      return NextResponse.json(
+        { error: "Pickup orders are collected at the stall — no shipment needed" },
+        { status: 409 }
+      );
     }
 
     if (order.tracking_number && order.carrier_name === "Delhivery") {

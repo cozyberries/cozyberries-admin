@@ -63,6 +63,8 @@ const statusColor: Record<OrderStatus, string> = {
   payment_pending: "bg-yellow-100 text-yellow-800",
   payment_confirmed: "bg-blue-100 text-blue-800",
   processing: "bg-purple-100 text-purple-800",
+  ready_for_pickup: "bg-orange-100 text-orange-800",
+  collected: "bg-green-100 text-green-800",
   shipped: "bg-indigo-100 text-indigo-800",
   delivered: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800",
@@ -184,6 +186,8 @@ function OrderDetailModal({
     payment_pending: <Clock className="h-3 w-3" />,
     payment_confirmed: <Banknote className="h-3 w-3" />,
     processing: <Package className="h-3 w-3" />,
+    ready_for_pickup: <Package className="h-3 w-3" />,
+    collected: <CheckCircle className="h-3 w-3" />,
     shipped: <Truck className="h-3 w-3" />,
     delivered: <CheckCircle className="h-3 w-3" />,
     cancelled: <XCircle className="h-3 w-3" />,
@@ -217,7 +221,7 @@ function OrderDetailModal({
   };
 
   const ALL_STATUSES: OrderStatus[] = [
-    "payment_pending", "payment_confirmed", "processing",
+    "payment_pending", "payment_confirmed", "processing", "ready_for_pickup", "collected",
     "shipped", "delivered", "cancelled", "refunded",
   ];
 
@@ -899,6 +903,8 @@ export default function OrderManagement() {
                   <SelectItem value="payment_pending">Payment Pending</SelectItem>
                   <SelectItem value="payment_confirmed">Payment Confirmed</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="ready_for_pickup">Ready for pickup</SelectItem>
+                  <SelectItem value="collected">Collected</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
                   <SelectItem value="delivered">Delivered</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>

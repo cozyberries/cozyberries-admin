@@ -3,7 +3,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase-server";
 import { authenticateRequest } from "@/lib/jwt-auth";
 
 // Revenue-counted statuses: money has been collected
-const REVENUE_STATUSES = ["payment_confirmed", "processing", "shipped", "delivered"];
+const REVENUE_STATUSES = ["payment_confirmed", "processing", "ready_for_pickup", "collected", "shipped", "delivered"];
 
 interface OrderRevenueAgg {
   sum: string | number | null;

@@ -135,6 +135,8 @@ const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   payment_pending: "Payment pending",
   payment_confirmed: "Payment confirmed",
   processing: "Processing",
+  ready_for_pickup: "Ready for pickup",
+  collected: "Collected",
   shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",
