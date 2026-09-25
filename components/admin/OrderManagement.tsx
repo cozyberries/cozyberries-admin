@@ -62,6 +62,7 @@ const fmt = (amount: number) =>
 
 const statusColor: Record<OrderStatus, string> = {
   payment_pending: "bg-yellow-100 text-yellow-800",
+  verifying_payment: "bg-amber-100 text-amber-800",
   payment_confirmed: "bg-blue-100 text-blue-800",
   processing: "bg-purple-100 text-purple-800",
   ready_for_pickup: "bg-orange-100 text-orange-800",
@@ -185,6 +186,7 @@ function OrderDetailModal({
 
   const statusIcon: Record<OrderStatus, React.ReactNode> = {
     payment_pending: <Clock className="h-3 w-3" />,
+    verifying_payment: <Clock className="h-3 w-3" />,
     payment_confirmed: <Banknote className="h-3 w-3" />,
     processing: <Package className="h-3 w-3" />,
     ready_for_pickup: <Store className="h-3 w-3" />,
@@ -222,7 +224,7 @@ function OrderDetailModal({
   };
 
   const ALL_STATUSES: OrderStatus[] = [
-    "payment_pending", "payment_confirmed", "processing", "ready_for_pickup", "collected",
+    "payment_pending", "verifying_payment", "payment_confirmed", "processing", "ready_for_pickup", "collected",
     "shipped", "delivered", "cancelled", "refunded",
   ];
 
@@ -254,7 +256,9 @@ function OrderDetailModal({
                 </SelectTrigger>
                 <SelectContent>
                   {ALL_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>
+                    // verifying_payment is listed so a cash order shows its status, but only
+                    // the Telegram confirmation moves an order out of it (the API rejects it).
+                    <SelectItem key={s} value={s} disabled={s === "verifying_payment"}>{s.replace(/_/g, " ")}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -737,6 +741,7 @@ export default function OrderManagement() {
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case "payment_pending": return <Clock className="h-3.5 w-3.5" />;
+      case "verifying_payment": return <Clock className="h-3.5 w-3.5" />;
       case "payment_confirmed": return <Banknote className="h-3.5 w-3.5" />;
       case "processing": return <Package className="h-3.5 w-3.5" />;
       case "ready_for_pickup": return <Store className="h-3.5 w-3.5" />;
@@ -904,6 +909,7 @@ export default function OrderManagement() {
                 <SelectContent>
                   <SelectItem value="all">All Orders</SelectItem>
                   <SelectItem value="payment_pending">Payment Pending</SelectItem>
+                  <SelectItem value="verifying_payment">Verifying Payment</SelectItem>
                   <SelectItem value="payment_confirmed">Payment Confirmed</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>
                   <SelectItem value="ready_for_pickup">Ready for pickup</SelectItem>

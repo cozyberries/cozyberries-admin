@@ -133,6 +133,7 @@ export async function insertNotificationRows(rows: NotificationInsertRow[]): Pro
 
 const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   payment_pending: "Payment pending",
+  verifying_payment: "Verifying payment",
   payment_confirmed: "Payment confirmed",
   processing: "Processing",
   ready_for_pickup: "Ready for pickup",
