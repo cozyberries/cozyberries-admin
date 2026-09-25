@@ -24,6 +24,7 @@ import {
   Download,
   Send,
   Ban,
+  Store,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -186,7 +187,7 @@ function OrderDetailModal({
     payment_pending: <Clock className="h-3 w-3" />,
     payment_confirmed: <Banknote className="h-3 w-3" />,
     processing: <Package className="h-3 w-3" />,
-    ready_for_pickup: <Package className="h-3 w-3" />,
+    ready_for_pickup: <Store className="h-3 w-3" />,
     collected: <CheckCircle className="h-3 w-3" />,
     shipped: <Truck className="h-3 w-3" />,
     delivered: <CheckCircle className="h-3 w-3" />,
@@ -738,6 +739,8 @@ export default function OrderManagement() {
       case "payment_pending": return <Clock className="h-3.5 w-3.5" />;
       case "payment_confirmed": return <Banknote className="h-3.5 w-3.5" />;
       case "processing": return <Package className="h-3.5 w-3.5" />;
+      case "ready_for_pickup": return <Store className="h-3.5 w-3.5" />;
+      case "collected": return <CheckCircle className="h-3.5 w-3.5" />;
       case "shipped": return <Truck className="h-3.5 w-3.5" />;
       case "delivered": return <CheckCircle className="h-3.5 w-3.5" />;
       case "cancelled": return <XCircle className="h-3.5 w-3.5" />;
